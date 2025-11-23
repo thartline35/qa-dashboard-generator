@@ -958,10 +958,10 @@ function ExportMenu({ metrics, expertPerformance, categoryBreakdown, reviewerSta
     );
 }
 
-// Chat Panel Component with Real Claude API
 // Chat Panel Component - Production
-function ChatPanel({ config, processedData, metrics, onClose }) {
-    const [messages, setMessages] = useState([
+// Chat Panel Component - Production
+function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initialMessages, onMessagesChange, onApplyChanges }) {
+    const [messages, setMessages] = useState(initialMessages || [
         {
             role: 'assistant',
             content: `Hi! I'm here to help you refine your ${PROJECT_TYPES[config.projectType]?.name || 'QA'} dashboard. You can ask me to:\n\n• Explain metrics or calculations\n• Modify quality thresholds\n• Add custom calculations\n• Filter or analyze specific data\n• Export custom reports\n\nWhat would you like to do?`
@@ -970,6 +970,13 @@ function ChatPanel({ config, processedData, metrics, onClose }) {
     const [input, setInput] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const messagesEndRef = React.useRef(null);
+
+    // Update parent when messages change
+    React.useEffect(() => {
+        if (onMessagesChange) {
+            onMessagesChange(messages);
+        }
+    }, [messages, onMessagesChange]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1002,7 +1009,29 @@ function ChatPanel({ config, processedData, metrics, onClose }) {
   **Quality Dimension Columns:**
   ${config.qualityDimensionColumns?.join(', ') || 'None configured'}
   
-  Help the user understand their dashboard, answer questions about calculations, and provide specific guidance. When they ask for new calculations or features, provide clear step-by-step instructions on what needs to be done.`;
+  IMPORTANT: When the user asks you to make changes to the dashboard (add calculations, modify thresholds, add tables, etc.), you must:
+  1. Explain what you're doing
+  2. Provide the exact configuration changes in a JSON code block like this:
+  \`\`\`json
+  {
+    "action": "update_config",
+    "changes": {
+      "field": "value"
+    }
+  }
+  \`\`\`
+  
+  For example, if they ask to add quality dimension columns, respond with:
+  \`\`\`json
+  {
+    "action": "update_config", 
+    "changes": {
+      "qualityDimensionColumns": ["column1", "column2", "column3"]
+    }
+  }
+  \`\`\`
+  
+  Help the user understand their dashboard, answer questions about calculations, and provide specific, actionable configuration changes.`;
     };
 
     const handleSend = async () => {
@@ -1052,6 +1081,24 @@ function ChatPanel({ config, processedData, metrics, onClose }) {
                 content: assistantResponse
             }]);
 
+            // Check if response contains configuration changes
+            const jsonMatch = assistantResponse.match(/```json\n([\s\S]*?)\n```/);
+            if (jsonMatch) {
+                try {
+                    const configUpdate = JSON.parse(jsonMatch[1]);
+                    if (configUpdate.action === 'update_config' && configUpdate.changes) {
+                        // Apply the changes
+                        onApplyChanges(configUpdate.changes);
+                        setMessages(prev => [...prev, {
+                            role: 'system',
+                            content: 'Configuration updated! The dashboard has been reconfigured with your changes.'
+                        }]);
+                    }
+                } catch (e) {
+                    console.error('Failed to parse config update:', e);
+                }
+            }
+
         } catch (error) {
             console.error('Chat error:', error);
             setMessages(prev => [...prev, {
@@ -1083,12 +1130,22 @@ function ChatPanel({ config, processedData, metrics, onClose }) {
                         <p className="text-xs text-slate-400">Dashboard Refinement</p>
                     </div>
                 </div>
-                <button
-                    onClick={onClose}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white"
-                >
-                    <X className="h-5 w-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={onMinimize}
+                        className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white"
+                        title="Minimize"
+                    >
+                        <ChevronDown className="h-5 w-5" />
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white"
+                        title="Close"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
             </div>
 
             {/* Messages */}
@@ -1100,10 +1157,10 @@ function ChatPanel({ config, processedData, metrics, onClose }) {
                     >
                         <div
                             className={`max-w-[85%] rounded-2xl px-4 py-3 ${msg.role === 'user'
-                                ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white'
-                                : msg.role === 'system'
-                                    ? 'bg-amber-500/10 border border-amber-500/30 text-amber-200'
-                                    : 'bg-white/5 border border-white/10 text-slate-200'
+                                    ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white'
+                                    : msg.role === 'system'
+                                        ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-200'
+                                        : 'bg-white/5 border border-white/10 text-slate-200'
                                 }`}
                         >
                             <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
@@ -2521,6 +2578,8 @@ export default function QADashboardGenerator() {
     const [showWizard, setShowWizard] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [showChat, setShowChat] = useState(false);
+    const [chatMinimized, setChatMinimized] = useState(false);
+    const [chatMessages, setChatMessages] = useState(null);
 
 
     // Multi-file support
@@ -3186,12 +3245,18 @@ export default function QADashboardGenerator() {
                                     config={config}
                                     fileName={file?.name || 'qa-dashboard'}
                                 />
+                                {/* Chat Button */}
                                 <button
-                                    onClick={() => setShowChat(true)}
+                                    onClick={() => { setShowChat(true); setChatMinimized(false); }}
                                     className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 rounded-xl text-sm text-white font-medium transition-all"
                                 >
                                     <MessageSquare className="h-4 w-4" />
                                     Chat
+                                    {chatMessages && chatMessages.length > 1 && (
+                                        <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                                            {chatMessages.length - 1}
+                                        </span>
+                                    )}
                                 </button>
                                 {dataSources.length > 1 && (
                                     <button onClick={() => { setConfig(null); setShowDataManager(true); }} className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm text-slate-300">
