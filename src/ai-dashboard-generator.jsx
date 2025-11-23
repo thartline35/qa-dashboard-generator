@@ -3063,47 +3063,59 @@ export default function QADashboardGenerator() {
     const categoryBreakdown = useMemo(() => {
         if (!processedData) return [];
         const byCategory = {};
-        processedData.filter(r => r.category).forEach(r => {
-            if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0 };
+        
+        // Only count non-excluded records with valid status
+        processedData.filter(r => r.category && !r.isExcluded).forEach(r => {
+          if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0 };
+          
+          // Only count if it has a valid status
+          if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
             byCategory[r.category].count++;
             if (r.status === 'pass') byCategory[r.category].pass++;
-            if (r.status === 'minor') byCategory[r.category].minor++;  // ADD THIS LINE
+            if (r.status === 'minor') byCategory[r.category].minor++;
             if (r.status === 'fail') byCategory[r.category].fail++;
+          }
         });
-
+      
         return Object.entries(byCategory).map(([cat, data]) => ({
-            Category: cat,
-            Count: data.count,
-            Pass: data.pass,
-            Minor: data.minor,  // ADD THIS LINE
-            Fail: data.fail,
-            'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,  // FIX THIS LINE
-            'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0
+          Category: cat,
+          Count: data.count,
+          Pass: data.pass,
+          Minor: data.minor,
+          Fail: data.fail,
+          'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,
+          'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0
         })).sort((a, b) => b.Count - a.Count);
-    }, [processedData]);
+      }, [processedData]);
 
     // Reviewer stats
     const reviewerStats = useMemo(() => {
         if (!processedData) return [];
         const byReviewer = {};
-        processedData.filter(r => r.reviewer).forEach(r => {
-            if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviews: 0, pass: 0, minor: 0, fail: 0 };
+        
+        // Only count non-excluded records with valid status
+        processedData.filter(r => r.reviewer && !r.isExcluded).forEach(r => {
+          if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviews: 0, pass: 0, minor: 0, fail: 0 };
+          
+          // Only count if it has a valid status
+          if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
             byReviewer[r.reviewer].reviews++;
             if (r.status === 'pass') byReviewer[r.reviewer].pass++;
             else if (r.status === 'minor') byReviewer[r.reviewer].minor++;
             else if (r.status === 'fail') byReviewer[r.reviewer].fail++;
+          }
         });
-
+      
         return Object.entries(byReviewer).map(([reviewer, data]) => ({
-            Reviewer: reviewer,
-            'Total Reviews': data.reviews,
-            'Pass Given': data.pass,
-            'Minor Given': data.minor,
-            'Fail Given': data.fail,
-            'Approval %': data.reviews > 0 ? ((data.pass + data.minor) / data.reviews) * 100 : 0,  // FIX: Include minor
-            'Fail %': data.reviews > 0 ? (data.fail / data.reviews) * 100 : 0
+          Reviewer: reviewer,
+          'Total Reviews': data.reviews,
+          'Pass Given': data.pass,
+          'Minor Given': data.minor,
+          'Fail Given': data.fail,
+          'Approval %': data.reviews > 0 ? ((data.pass + data.minor) / data.reviews) * 100 : 0,
+          'Fail %': data.reviews > 0 ? (data.fail / data.reviews) * 100 : 0
         })).sort((a, b) => b['Total Reviews'] - a['Total Reviews']);
-    }, [processedData]);
+      }, [processedData]);
 
     // Chart data
     const statusDistribution = useMemo(() => {
