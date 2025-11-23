@@ -1100,10 +1100,10 @@ function ChatPanel({ config, processedData, metrics, onClose }) {
                     >
                         <div
                             className={`max-w-[85%] rounded-2xl px-4 py-3 ${msg.role === 'user'
-                                    ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white'
-                                    : msg.role === 'system'
-                                        ? 'bg-amber-500/10 border border-amber-500/30 text-amber-200'
-                                        : 'bg-white/5 border border-white/10 text-slate-200'
+                                ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white'
+                                : msg.role === 'system'
+                                    ? 'bg-amber-500/10 border border-amber-500/30 text-amber-200'
+                                    : 'bg-white/5 border border-white/10 text-slate-200'
                                 }`}
                         >
                             <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
@@ -3041,7 +3041,7 @@ export default function QADashboardGenerator() {
             'Pass Given': data.pass,
             'Minor Given': data.minor,
             'Fail Given': data.fail,
-            'Pass %': data.reviews > 0 ? (data.pass / data.reviews) * 100 : 0,
+            'Approval %': data.reviews > 0 ? ((data.pass + data.minor) / data.reviews) * 100 : 0,  // FIX: Include minor
             'Fail %': data.reviews > 0 ? (data.fail / data.reviews) * 100 : 0
         })).sort((a, b) => b['Total Reviews'] - a['Total Reviews']);
     }, [processedData]);
@@ -3353,7 +3353,8 @@ export default function QADashboardGenerator() {
                             columns={['Category', 'Count', 'Pass', 'Minor', 'Fail', 'Approval %', 'Defect %']} />
                     )}
                     {config.showTables.reviewer && reviewerStats.length > 0 && (
-                        <DataTable data={reviewerStats} title="Reviewer Statistics" columns={['Reviewer', 'Total Reviews', 'Pass Given', 'Minor Given', 'Fail Given', 'Pass %', 'Fail %']} />
+                        <DataTable data={reviewerStats} title="Reviewer Statistics"
+                            columns={['Reviewer', 'Total Reviews', 'Pass Given', 'Minor Given', 'Fail Given', 'Approval %', 'Fail %']} />
                     )}
                     {config.showTables.detailed && processedData.length > 0 && (
                         <DataTable data={processedData.slice(0, 500).map(r => ({
