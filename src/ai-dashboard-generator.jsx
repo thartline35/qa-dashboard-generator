@@ -987,52 +987,95 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
     }, [messages]);
 
     const buildSystemPrompt = () => {
-        return `You are an AI assistant helping a user refine their QA Dashboard. Here's the current dashboard configuration:
-  
-  **Project Type:** ${PROJECT_TYPES[config.projectType]?.name || 'Unknown'}
-  **Quality System:** ${QUALITY_TYPES[config.qualityType]?.name || 'Unknown'}
-  **Expert ID Column:** ${config.expertIdColumn || 'Not set'}
-  **Score Column:** ${config.scoreColumn || 'Not set'}
-  
-  **Current Metrics:**
-  - Total Records: ${metrics?.total || 0}
-  - Approval Rate: ${metrics?.approvalRate?.toFixed(1) || 0}%
-  - Defect Rate: ${metrics?.defectRate?.toFixed(1) || 0}%
-  - Unique Experts: ${metrics?.uniqueExperts || 0}
-  
-  **Quality Thresholds:**
-  ${config.numericFailThreshold ? `- Fail Threshold: < ${config.numericFailThreshold}\n- Minor Threshold: < ${config.numericMinorThreshold}\n- Pass Threshold: >= ${config.numericMinorThreshold}` : `- Pass Values: ${config.passValues?.join(', ') || 'None'}\n- Minor Values: ${config.minorValues?.join(', ') || 'None'}\n- Fail Values: ${config.failValues?.join(', ') || 'None'}`}
-  
-  **Available Data Columns:**
-  ${processedData && processedData.length > 0 ? Object.keys(processedData[0].raw || {}).join(', ') : 'No data available'}
-  
-  **Quality Dimension Columns:**
-  ${config.qualityDimensionColumns?.join(', ') || 'None configured'}
-  
-  IMPORTANT: When the user asks you to make changes to the dashboard (add calculations, modify thresholds, add tables, etc.), you must:
-  1. Explain what you're doing
-  2. Provide the exact configuration changes in a JSON code block like this:
-  \`\`\`json
-  {
-    "action": "update_config",
-    "changes": {
-      "field": "value"
-    }
-  }
-  \`\`\`
-  
-  For example, if they ask to add quality dimension columns, respond with:
-  \`\`\`json
-  {
-    "action": "update_config", 
-    "changes": {
-      "qualityDimensionColumns": ["column1", "column2", "column3"]
-    }
-  }
-  \`\`\`
-  
-  Help the user understand their dashboard, answer questions about calculations, and provide specific, actionable configuration changes.`;
-    };
+        // Get sample of actual data structure
+        const sampleData = processedData && processedData.length > 0 
+          ? JSON.stringify(processedData[0].raw, null, 2) 
+          : 'No data available';
+          
+        const availableColumns = processedData && processedData.length > 0 
+          ? Object.keys(processedData[0].raw || {}) 
+          : [];
+      
+        return `You are an AI assistant helping a user analyze their REAL QA data. You work ONLY with actual data that exists - you NEVER make up, alter, or fabricate values.
+      
+      **CRITICAL RULES:**
+      1. ONLY use columns that actually exist in the data
+      2. ONLY calculate metrics from real data values
+      3. NEVER invent data, columns, or values
+      4. If data doesn't exist to fulfill a request, tell the user what's missing
+      5. Focus on: calculating, filtering, grouping, visualizing, and drilling down into REAL data
+      
+      **Current Dashboard State:**
+      - Project Type: ${PROJECT_TYPES[config.projectType]?.name || 'Unknown'}
+      - Total Records: ${metrics?.total || 0}
+      - Approval Rate: ${metrics?.approvalRate?.toFixed(1) || 0}%
+      - Defect Rate: ${metrics?.defectRate?.toFixed(1) || 0}%
+      - Unique Experts: ${metrics?.uniqueExperts || 0}
+      ${metrics?.avgQuality ? `- Average Quality: ${metrics.avgQuality.toFixed(1)}%` : ''}
+      
+      **ACTUAL DATA STRUCTURE:**
+      Available Columns: ${availableColumns.join(', ')}
+      
+      Sample Record:
+      ${sampleData}
+      
+      **Current Configuration:**
+      - Expert ID Column: ${config.expertIdColumn}
+      - Score Column: ${config.scoreColumn}
+      - Category Column: ${config.categoryColumn || 'Not set'}
+      - Reviewer Column: ${config.reviewerColumn || 'Not set'}
+      - Timestamp Column: ${config.timestampColumn || 'Not set'}
+      - Quality Dimension Columns: ${config.qualityDimensionColumns?.join(', ') || 'None'}
+      - Pass Values: ${config.passValues?.join(', ') || 'None'}
+      - Minor Values: ${config.minorValues?.join(', ') || 'None'}
+      - Fail Values: ${config.failValues?.join(', ') || 'None'}
+      
+      **WHAT YOU CAN DO:**
+      ✅ Calculate metrics from existing columns (averages, counts, percentages, distributions)
+      ✅ Create visualizations (charts, tables) of real data
+      ✅ Filter and group data by existing column values
+      ✅ Set up drill-down views based on categories, experts, time periods
+      ✅ Configure quality dimensions using actual column names that contain Good/Bad or similar values
+      ✅ Modify thresholds for existing scoring columns
+      ✅ Add aggregations (sum, average, min, max, median) of numeric columns
+      ✅ Create time-series views if timestamp data exists
+      ✅ Compare subsets of data (expert vs expert, category vs category, time period vs time period)
+      
+      **WHAT YOU CANNOT DO:**
+      ❌ Create new data that doesn't exist
+      ❌ Alter or fabricate values in the dataset
+      ❌ Use column names that don't exist in the actual data
+      ❌ Make assumptions about data that isn't present
+      ❌ Calculate metrics from columns that aren't in the dataset
+      
+      **WHEN USER REQUESTS CHANGES:**
+      1. First, verify the data exists to support their request
+      2. If data is missing, explain what's needed
+      3. If data exists, provide the configuration in JSON:
+      
+      \`\`\`json
+      {
+        "action": "update_config",
+        "changes": {
+          "qualityDimensionColumns": ["actual_column_1", "actual_column_2"],
+          "enableQualityOverTime": true
+        }
+      }
+      \`\`\`
+      
+      **EXAMPLE VALID REQUESTS:**
+      - "Calculate average score by category" → Aggregate real score values by real category values
+      - "Show quality trend over time" → Plot real quality scores by real timestamps
+      - "Filter to show only expert X" → Filter existing data where expertId = X
+      - "Add drill-down by reviewer" → Create interactive view grouping by actual reviewer column
+      
+      **EXAMPLE INVALID REQUESTS (Explain what's missing):**
+      - "Add sentiment analysis" → If sentiment column doesn't exist, explain it would need to be added to source data
+      - "Show projected future performance" → Cannot predict/fabricate future data
+      - "Calculate ROI" → If cost/revenue columns don't exist, explain they need to be in the data
+      
+      Your job: Help users extract maximum insights from their ACTUAL data through smart calculations, filters, groupings, and visualizations.`;
+      };
 
     const handleSend = async () => {
         if (!input.trim() || isProcessing) return;
@@ -1082,22 +1125,42 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
             }]);
 
             // Check if response contains configuration changes
-            const jsonMatch = assistantResponse.match(/```json\n([\s\S]*?)\n```/);
-            if (jsonMatch) {
-                try {
-                    const configUpdate = JSON.parse(jsonMatch[1]);
-                    if (configUpdate.action === 'update_config' && configUpdate.changes) {
-                        // Apply the changes
-                        onApplyChanges(configUpdate.changes);
-                        setMessages(prev => [...prev, {
-                            role: 'system',
-                            content: 'Configuration updated! The dashboard has been reconfigured with your changes.'
-                        }]);
-                    }
-                } catch (e) {
-                    console.error('Failed to parse config update:', e);
-                }
-            }
+const jsonMatch = assistantResponse.match(/```json\n([\s\S]*?)\n```/);
+if (jsonMatch) {
+  try {
+    const configUpdate = JSON.parse(jsonMatch[1]);
+    if (configUpdate.action === 'update_config' && configUpdate.changes) {
+      
+      // Validate that any column references actually exist
+      const allColumns = processedData && processedData.length > 0 
+        ? Object.keys(processedData[0].raw || {})
+        : [];
+        
+      // Check qualityDimensionColumns
+      if (configUpdate.changes.qualityDimensionColumns) {
+        const invalidColumns = configUpdate.changes.qualityDimensionColumns.filter(
+          col => !allColumns.includes(col)
+        );
+        if (invalidColumns.length > 0) {
+          setMessages(prev => [...prev, {
+            role: 'system',
+            content: `Configuration Error: The following columns do not exist in your data: ${invalidColumns.join(', ')}\n\nAvailable columns: ${allColumns.join(', ')}`
+          }]);
+          return; // Exit early, don't apply changes
+        }
+      }
+      
+      // Apply the validated changes
+      onApplyChanges(configUpdate.changes);
+      setMessages(prev => [...prev, {
+        role: 'system',
+        content: 'Configuration updated! The dashboard has been reconfigured with your changes.'
+      }]);
+    }
+  } catch (e) {
+    console.error('Failed to parse config update:', e);
+  }
+}
 
         } catch (error) {
             console.error('Chat error:', error);
