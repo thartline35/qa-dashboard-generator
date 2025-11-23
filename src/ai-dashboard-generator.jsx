@@ -1157,10 +1157,10 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
                     >
                         <div
                             className={`max-w-[85%] rounded-2xl px-4 py-3 ${msg.role === 'user'
-                                    ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white'
-                                    : msg.role === 'system'
-                                        ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-200'
-                                        : 'bg-white/5 border border-white/10 text-slate-200'
+                                ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white'
+                                : msg.role === 'system'
+                                    ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-200'
+                                    : 'bg-white/5 border border-white/10 text-slate-200'
                                 }`}
                         >
                             <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
@@ -3427,16 +3427,40 @@ export default function QADashboardGenerator() {
                         }))} title="Detailed Records" columns={['Date', 'Expert', 'Status', 'Score', 'Category', 'Reviewer']} />
                     )}
                 </main>
-                {showChat && (
+                {/* Chat Panel */}
+                {showChat && !chatMinimized && (
                     <ChatPanel
                         config={config}
                         processedData={processedData}
                         metrics={metrics}
-                        onClose={() => setShowChat(false)}
-                        onApplyChanges={(updates) => {
-                            console.log('Applying changes:', updates);
+                        initialMessages={chatMessages}
+                        onMessagesChange={setChatMessages}
+                        onClose={() => {
+                            setShowChat(false);
+                            setChatMessages(null); // Clear on close
+                        }}
+                        onMinimize={() => setChatMinimized(true)}
+                        onApplyChanges={(changes) => {
+                            // Apply config changes
+                            setConfig(prev => ({ ...prev, ...changes }));
                         }}
                     />
+                )}
+
+                {/* Minimized Chat Indicator */}
+                {showChat && chatMinimized && (
+                    <button
+                        onClick={() => setChatMinimized(false)}
+                        className="fixed bottom-6 right-6 flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 rounded-xl text-white shadow-2xl z-50 transition-all"
+                    >
+                        <MessageSquare className="h-5 w-5" />
+                        <span className="font-medium">AI Assistant</span>
+                        {chatMessages && chatMessages.length > 1 && (
+                            <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                                {chatMessages.length - 1}
+                            </span>
+                        )}
+                    </button>
                 )}
                 <Footer />
             </div>
