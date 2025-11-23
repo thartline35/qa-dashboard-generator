@@ -3120,13 +3120,14 @@ export default function QADashboardGenerator() {
         if (!processedData) return [];
         const byDate = {};
         processedData.filter(r => r.date).forEach(r => {
-            if (!byDate[r.date]) byDate[r.date] = { date: r.date, total: 0, pass: 0, fail: 0 };
-            byDate[r.date].total++;
-            if (r.status === 'pass') byDate[r.date].pass++;
-            if (r.status === 'fail') byDate[r.date].fail++;
+          if (!byDate[r.date]) byDate[r.date] = { date: r.date, total: 0, pass: 0, minor: 0, fail: 0 };
+          byDate[r.date].total++;
+          if (r.status === 'pass') byDate[r.date].pass++;
+          if (r.status === 'minor') byDate[r.date].minor++;  // ADD THIS LINE
+          if (r.status === 'fail') byDate[r.date].fail++;
         });
         return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
-    }, [processedData]);
+      }, [processedData]);
 
     // Landing Page
     if (showLandingPage) {
@@ -3336,58 +3337,61 @@ export default function QADashboardGenerator() {
                         </div>
 
                         {trendData.length > 0 && (
-                            <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
-                                <h3 className="text-lg font-semibold text-white mb-4">Submissions Over Time</h3>
-                                <ResponsiveContainer width="100%" height={280}>
-                                    {config.chartPreferences.trendChart === 'bar' ? (
-                                        <BarChart data={trendData}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                                            <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
-                                                tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; }} />
-                                            <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-                                            <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
-                                                itemStyle={{ color: '#e2e8f0' }} />
-                                            <Bar dataKey="total" fill="#6366F1" radius={[4, 4, 0, 0]} name="Total" />
-                                            <Bar dataKey="pass" fill="#10b981" radius={[4, 4, 0, 0]} name="Pass" />
-                                            <Bar dataKey="fail" fill="#ef4444" radius={[4, 4, 0, 0]} name="Fail" />
-                                            <Legend />
-                                        </BarChart>
-                                    ) : config.chartPreferences.trendChart === 'line' ? (
-                                        <LineChart data={trendData}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                                            <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
-                                                tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; }} />
-                                            <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-                                            <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
-                                                itemStyle={{ color: '#e2e8f0' }} />
-                                            <Line type="monotone" dataKey="total" stroke="#6366F1" strokeWidth={2} name="Total" />
-                                            <Line type="monotone" dataKey="pass" stroke="#10b981" strokeWidth={2} name="Pass" />
-                                            <Line type="monotone" dataKey="fail" stroke="#ef4444" strokeWidth={2} name="Fail" />
-                                            <Legend />
-                                        </LineChart>
-                                    ) : (
-                                        <AreaChart data={trendData}>
-                                            <defs>
-                                                <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
-                                                    <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
-                                                </linearGradient>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                                            <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
-                                                tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; }} />
-                                            <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-                                            <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
-                                                itemStyle={{ color: '#e2e8f0' }} />
-                                            <Area type="monotone" dataKey="total" stroke="#6366F1" fillOpacity={1} fill="url(#colorTotal)" name="Total" />
-                                            <Line type="monotone" dataKey="pass" stroke="#10b981" strokeWidth={2} dot={false} name="Pass" />
-                                            <Line type="monotone" dataKey="fail" stroke="#ef4444" strokeWidth={2} dot={false} name="Fail" />
-                                            <Legend />
-                                        </AreaChart>
-                                    )}
-                                </ResponsiveContainer>
-                            </div>
-                        )}
+  <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+    <h3 className="text-lg font-semibold text-white mb-4">Submissions Over Time</h3>
+    <ResponsiveContainer width="100%" height={280}>
+      {config.chartPreferences.trendChart === 'bar' ? (
+        <BarChart data={trendData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+          <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
+            tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth()+1}/${dt.getDate()}`; }} />
+          <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} 
+            itemStyle={{ color: '#e2e8f0' }} />
+          <Bar dataKey="total" fill="#6366F1" radius={[4, 4, 0, 0]} name="Total" />
+          <Bar dataKey="pass" fill="#10b981" radius={[4, 4, 0, 0]} name="Pass" />
+          <Bar dataKey="minor" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Minor" />
+          <Bar dataKey="fail" fill="#ef4444" radius={[4, 4, 0, 0]} name="Fail" />
+          <Legend />
+        </BarChart>
+      ) : config.chartPreferences.trendChart === 'line' ? (
+        <LineChart data={trendData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+          <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
+            tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth()+1}/${dt.getDate()}`; }} />
+          <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} 
+            itemStyle={{ color: '#e2e8f0' }} />
+          <Line type="monotone" dataKey="total" stroke="#6366F1" strokeWidth={2} name="Total" />
+          <Line type="monotone" dataKey="pass" stroke="#10b981" strokeWidth={2} name="Pass" />
+          <Line type="monotone" dataKey="minor" stroke="#f59e0b" strokeWidth={2} name="Minor" />
+          <Line type="monotone" dataKey="fail" stroke="#ef4444" strokeWidth={2} name="Fail" />
+          <Legend />
+        </LineChart>
+      ) : (
+        <AreaChart data={trendData}>
+          <defs>
+            <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="#6366F1" stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+          <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
+            tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth()+1}/${dt.getDate()}`; }} />
+          <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} 
+            itemStyle={{ color: '#e2e8f0' }} />
+          <Area type="monotone" dataKey="total" stroke="#6366F1" fillOpacity={1} fill="url(#colorTotal)" name="Total" />
+          <Line type="monotone" dataKey="pass" stroke="#10b981" strokeWidth={2} dot={false} name="Pass" />
+          <Line type="monotone" dataKey="minor" stroke="#f59e0b" strokeWidth={2} dot={false} name="Minor" />
+          <Line type="monotone" dataKey="fail" stroke="#ef4444" strokeWidth={2} dot={false} name="Fail" />
+          <Legend />
+        </AreaChart>
+      )}
+    </ResponsiveContainer>
+  </div>
+)}
                     </div>
 
                     {/* Category Chart */}
