@@ -1125,42 +1125,86 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
             }]);
 
             // Check if response contains configuration changes
-const jsonMatch = assistantResponse.match(/```json\n([\s\S]*?)\n```/);
-if (jsonMatch) {
-  try {
-    const configUpdate = JSON.parse(jsonMatch[1]);
-    if (configUpdate.action === 'update_config' && configUpdate.changes) {
-      
-      // Validate that any column references actually exist
-      const allColumns = processedData && processedData.length > 0 
-        ? Object.keys(processedData[0].raw || {})
-        : [];
-        
-      // Check qualityDimensionColumns
-      if (configUpdate.changes.qualityDimensionColumns) {
-        const invalidColumns = configUpdate.changes.qualityDimensionColumns.filter(
-          col => !allColumns.includes(col)
-        );
-        if (invalidColumns.length > 0) {
-          setMessages(prev => [...prev, {
-            role: 'system',
-            content: `Configuration Error: The following columns do not exist in your data: ${invalidColumns.join(', ')}\n\nAvailable columns: ${allColumns.join(', ')}`
-          }]);
-          return; // Exit early, don't apply changes
-        }
-      }
-      
-      // Apply the validated changes
-      onApplyChanges(configUpdate.changes);
-      setMessages(prev => [...prev, {
-        role: 'system',
-        content: 'Configuration updated! The dashboard has been reconfigured with your changes.'
-      }]);
-    }
-  } catch (e) {
-    console.error('Failed to parse config update:', e);
-  }
-}
+            const configUpdate = extractConfigUpdate(assistantResponse);
+            const hasChangesPayload = configUpdate && (configUpdate.action === 'update_config' || configUpdate.changes || configUpdate.customCharts || configUpdate.customCalculations);
+            if (hasChangesPayload) {
+                const incomingChanges = {
+                    ...(configUpdate?.changes || {}),
+                    ...(configUpdate?.customCharts ? { customCharts: configUpdate.customCharts } : {}),
+                    ...(configUpdate?.customCalculations ? { customCalculations: configUpdate.customCalculations } : {}),
+                };
+
+                const allColumns = processedData && processedData.length > 0
+                    ? Object.keys(processedData[0].raw || {})
+                    : [];
+
+                // Validate qualityDimensionColumns
+                if (incomingChanges.qualityDimensionColumns) {
+                    const invalidColumns = incomingChanges.qualityDimensionColumns.filter(
+                        col => !allColumns.includes(col)
+                    );
+                    if (invalidColumns.length > 0) {
+                        setMessages(prev => [...prev, {
+                            role: 'system',
+                            content: `Configuration Error: The following columns do not exist in your data: ${invalidColumns.join(', ')}\n\nAvailable columns: ${allColumns.join(', ')}`
+                        }]);
+                        return;
+                    }
+                }
+
+                // Validate custom charts
+                if (incomingChanges.customCharts) {
+                    incomingChanges.customCharts = incomingChanges.customCharts.map(chart => {
+                        const metricNeedsColumn = chart.metric && ['avg', 'sum', 'min', 'max'].includes(chart.metric);
+                        const metricColumn = chart.metricColumn || (metricNeedsColumn ? config.scoreColumn : undefined);
+                        const groupBy = chart.groupBy || config.categoryColumn || config.expertIdColumn;
+                        return { type: 'bar', ...chart, metricColumn, groupBy };
+                    });
+
+                    const invalidCharts = incomingChanges.customCharts.filter(chart => {
+                        const hasGroupBy = chart.groupBy && allColumns.includes(chart.groupBy);
+                        const metricNeedsColumn = chart.metric && ['avg', 'sum', 'min', 'max'].includes(chart.metric);
+                        const hasMetricCol = !metricNeedsColumn || (chart.metricColumn && allColumns.includes(chart.metricColumn));
+                        return !hasGroupBy || !hasMetricCol;
+                    });
+                    if (invalidCharts.length > 0) {
+                        setMessages(prev => [...prev, {
+                            role: 'system',
+                            content: `Configuration Error: Some custom charts reference missing columns. Available columns: ${allColumns.join(', ')}`
+                        }]);
+                        return;
+                    }
+                }
+
+                // Validate custom calculations
+                if (incomingChanges.customCalculations) {
+                    incomingChanges.customCalculations = incomingChanges.customCalculations.map(calc => {
+                        const operationNeedsColumn = ['sum', 'avg', 'min', 'max'].includes(calc.operation || '');
+                        const column = calc.column || (operationNeedsColumn ? config.scoreColumn : undefined);
+                        return { ...calc, column };
+                    });
+
+                    const invalidCalcs = incomingChanges.customCalculations.filter(calc => {
+                        const operationNeedsColumn = ['sum', 'avg', 'min', 'max'].includes(calc.operation || '');
+                        const columnRequired = operationNeedsColumn;
+                        const columnOk = !columnRequired || (calc.column && allColumns.includes(calc.column));
+                        return !columnOk;
+                    });
+                    if (invalidCalcs.length > 0) {
+                        setMessages(prev => [...prev, {
+                            role: 'system',
+                            content: `Configuration Error: Some custom calculations reference missing columns. Available columns: ${allColumns.join(', ')}`
+                        }]);
+                        return;
+                    }
+                }
+
+                onApplyChanges(incomingChanges);
+                setMessages(prev => [...prev, {
+                    role: 'system',
+                    content: 'Configuration updated! The dashboard has been reconfigured with your changes.'
+                }]);
+            }
 
         } catch (error) {
             console.error('Chat error:', error);
