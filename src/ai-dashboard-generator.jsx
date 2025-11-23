@@ -962,25 +962,25 @@ function ExportMenu({ metrics, expertPerformance, categoryBreakdown, reviewerSta
 // Chat Panel Component - Production
 function ChatPanel({ config, processedData, metrics, onClose }) {
     const [messages, setMessages] = useState([
-      {
-        role: 'assistant',
-        content: `Hi! I'm here to help you refine your ${PROJECT_TYPES[config.projectType]?.name || 'QA'} dashboard. You can ask me to:\n\n• Explain metrics or calculations\n• Modify quality thresholds\n• Add custom calculations\n• Filter or analyze specific data\n• Export custom reports\n\nWhat would you like to do?`
-      }
+        {
+            role: 'assistant',
+            content: `Hi! I'm here to help you refine your ${PROJECT_TYPES[config.projectType]?.name || 'QA'} dashboard. You can ask me to:\n\n• Explain metrics or calculations\n• Modify quality thresholds\n• Add custom calculations\n• Filter or analyze specific data\n• Export custom reports\n\nWhat would you like to do?`
+        }
     ]);
     const [input, setInput] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const messagesEndRef = React.useRef(null);
-  
+
     const scrollToBottom = () => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
-  
+
     React.useEffect(() => {
-      scrollToBottom();
+        scrollToBottom();
     }, [messages]);
-  
+
     const buildSystemPrompt = () => {
-      return `You are an AI assistant helping a user refine their QA Dashboard. Here's the current dashboard configuration:
+        return `You are an AI assistant helping a user refine their QA Dashboard. Here's the current dashboard configuration:
   
   **Project Type:** ${PROJECT_TYPES[config.projectType]?.name || 'Unknown'}
   **Quality System:** ${QUALITY_TYPES[config.qualityType]?.name || 'Unknown'}
@@ -1004,155 +1004,154 @@ function ChatPanel({ config, processedData, metrics, onClose }) {
   
   Help the user understand their dashboard, answer questions about calculations, and provide specific guidance. When they ask for new calculations or features, provide clear step-by-step instructions on what needs to be done.`;
     };
-  
+
     const handleSend = async () => {
         if (!input.trim() || isProcessing) return;
-      
+
         const userMessage = input.trim();
         setInput('');
         setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
         setIsProcessing(true);
-      
+
         try {
-          const conversationHistory = messages
-            .filter(msg => msg.role !== 'system')
-            .map(msg => ({
-              role: msg.role === 'assistant' ? 'assistant' : 'user',
-              content: msg.content
-            }));
-      
-          conversationHistory.push({
-            role: 'user',
-            content: userMessage
-          });
-      
-          const response = await fetch("/api/claude", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "claude-sonnet-4-20250514",
-              max_tokens: 2000,
-              system: buildSystemPrompt(),
-              messages: conversationHistory
-            })
-          });
-      
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `API request failed: ${response.status}`);
-          }
-      
-          const data = await response.json();
-          const assistantResponse = data.content[0].text;
-      
-          setMessages(prev => [...prev, {
-            role: 'assistant',
-            content: assistantResponse
-          }]);
-      
+            const conversationHistory = messages
+                .filter(msg => msg.role !== 'system')
+                .map(msg => ({
+                    role: msg.role === 'assistant' ? 'assistant' : 'user',
+                    content: msg.content
+                }));
+
+            conversationHistory.push({
+                role: 'user',
+                content: userMessage
+            });
+
+            const response = await fetch("/api/claude", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    model: "claude-sonnet-4-20250514",
+                    max_tokens: 2000,
+                    system: buildSystemPrompt(),
+                    messages: conversationHistory
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `API request failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const assistantResponse = data.content[0].text;
+
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: assistantResponse
+            }]);
+
         } catch (error) {
-          console.error('Chat error:', error);
-          setMessages(prev => [...prev, {
-            role: 'assistant',
-            content: `Error: ${error.message}`
-          }]);
+            console.error('Chat error:', error);
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `Error: ${error.message}`
+            }]);
         } finally {
-          setIsProcessing(false);
+            setIsProcessing(false);
         }
-      };
-  
-    const handleKeyPress = (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
     };
-  
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
+    };
+
     return (
-      <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-slate-900 border-l border-white/10 shadow-2xl z-50 flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/10 to-pink-500/10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
-              <MessageSquare className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-white">AI Assistant</h3>
-              <p className="text-xs text-slate-400">Dashboard Refinement</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-  
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                  msg.role === 'user'
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white'
-                    : msg.role === 'system'
-                    ? 'bg-amber-500/10 border border-amber-500/30 text-amber-200'
-                    : 'bg-white/5 border border-white/10 text-slate-200'
-                }`}
-              >
-                <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
-              </div>
-            </div>
-          ))}
-          {isProcessing && (
-            <div className="flex justify-start">
-              <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse" />
-                  <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
-                  <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+        <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-slate-900 border-l border-white/10 shadow-2xl z-50 flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/10 to-pink-500/10">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+                        <MessageSquare className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-white">AI Assistant</h3>
+                        <p className="text-xs text-slate-400">Dashboard Refinement</p>
+                    </div>
                 </div>
-              </div>
+                <button
+                    onClick={onClose}
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white"
+                >
+                    <X className="h-5 w-5" />
+                </button>
             </div>
-          )}
-          <div ref={messagesEndRef} />
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages.map((msg, idx) => (
+                    <div
+                        key={idx}
+                        className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                        <div
+                            className={`max-w-[85%] rounded-2xl px-4 py-3 ${msg.role === 'user'
+                                    ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white'
+                                    : msg.role === 'system'
+                                        ? 'bg-amber-500/10 border border-amber-500/30 text-amber-200'
+                                        : 'bg-white/5 border border-white/10 text-slate-200'
+                                }`}
+                        >
+                            <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                        </div>
+                    </div>
+                ))}
+                {isProcessing && (
+                    <div className="flex justify-start">
+                        <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse" />
+                                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+                                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+                            </div>
+                        </div>
+                    </div>
+                )}
+                <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input */}
+            <div className="p-4 border-t border-white/10 bg-slate-950">
+                <div className="flex gap-2">
+                    <textarea
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Ask me anything about your dashboard..."
+                        rows={2}
+                        disabled={isProcessing}
+                        className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none disabled:opacity-50"
+                    />
+                    <button
+                        onClick={handleSend}
+                        disabled={!input.trim() || isProcessing}
+                        className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-white transition-all"
+                    >
+                        <Send className="h-5 w-5" />
+                    </button>
+                </div>
+                <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
+                    <Info className="h-3 w-3" />
+                    <span>Press Enter to send, Shift+Enter for new line</span>
+                </div>
+            </div>
         </div>
-  
-        {/* Input */}
-        <div className="p-4 border-t border-white/10 bg-slate-950">
-          <div className="flex gap-2">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask me anything about your dashboard..."
-              rows={2}
-              disabled={isProcessing}
-              className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none disabled:opacity-50"
-            />
-            <button
-              onClick={handleSend}
-              disabled={!input.trim() || isProcessing}
-              className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-white transition-all"
-            >
-              <Send className="h-5 w-5" />
-            </button>
-          </div>
-          <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
-            <Info className="h-3 w-3" />
-            <span>Press Enter to send, Shift+Enter for new line</span>
-          </div>
-        </div>
-      </div>
     );
-  }
+}
 
 // Data Source Manager Component - for multi-file support
 function DataSourceManager({
@@ -2162,8 +2161,8 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
                                                     key={val}
                                                     onClick={() => toggleArrayValue('passValues', val)}
                                                     className={`px-3 py-1.5 rounded-lg text-sm transition-all ${config.passValues.includes(val)
-                                                            ? 'bg-emerald-500 text-white'
-                                                            : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                                                        ? 'bg-emerald-500 text-white'
+                                                        : 'bg-white/10 text-slate-300 hover:bg-white/20'
                                                         }`}
                                                 >
                                                     {val}
@@ -2186,8 +2185,8 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
                                                     key={val}
                                                     onClick={() => toggleArrayValue('minorValues', val)}
                                                     className={`px-3 py-1.5 rounded-lg text-sm transition-all ${config.minorValues.includes(val)
-                                                            ? 'bg-amber-500 text-white'
-                                                            : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                                                        ? 'bg-amber-500 text-white'
+                                                        : 'bg-white/10 text-slate-300 hover:bg-white/20'
                                                         }`}
                                                 >
                                                     {val}
@@ -2207,8 +2206,8 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
                                                     key={val}
                                                     onClick={() => toggleArrayValue('failValues', val)}
                                                     className={`px-3 py-1.5 rounded-lg text-sm transition-all ${config.failValues.includes(val)
-                                                            ? 'bg-rose-500 text-white'
-                                                            : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                                                        ? 'bg-rose-500 text-white'
+                                                        : 'bg-white/10 text-slate-300 hover:bg-white/20'
                                                         }`}
                                                 >
                                                     {val}
@@ -2228,8 +2227,8 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
                                                     key={val}
                                                     onClick={() => toggleArrayValue('excludeValues', val)}
                                                     className={`px-3 py-1.5 rounded-lg text-sm transition-all ${config.excludeValues.includes(val)
-                                                            ? 'bg-slate-500 text-white'
-                                                            : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                                                        ? 'bg-slate-500 text-white'
+                                                        : 'bg-white/10 text-slate-300 hover:bg-white/20'
                                                         }`}
                                                 >
                                                     {val}
@@ -2378,74 +2377,74 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
                     </div>
                 );
 
-                case 7:
-                    return (
-                      <div className="space-y-6">
+            case 7:
+                return (
+                    <div className="space-y-6">
                         <div className="text-center mb-8">
-                          <div className="w-16 h-16 bg-gradient-to-br from-slate-500 to-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                            <Settings className="h-8 w-8 text-white" />
-                          </div>
-                          <h2 className="text-2xl font-bold text-white mb-2">Additional Settings</h2>
-                          <p className="text-slate-400">Final configuration options</p>
+                            <div className="w-16 h-16 bg-gradient-to-br from-slate-500 to-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <Settings className="h-8 w-8 text-white" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-white mb-2">Additional Settings</h2>
+                            <p className="text-slate-400">Final configuration options</p>
                         </div>
-                  
+
                         <div className="grid grid-cols-1 gap-6">
-                          {config.qualityType === 'multi_dimension' && (
-                            <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
-                              <label className="text-sm font-medium text-slate-300 mb-2">"Good" Value for Dimensions</label>
-                              <p className="text-xs text-slate-500 mb-2">What value indicates "good" in quality dimensions?</p>
-                              <input
-                                type="text"
-                                value={config.goodValue}
-                                onChange={(e) => updateConfig('goodValue', e.target.value)}
-                                placeholder="e.g., Good, Pass, Yes"
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white"
-                              />
+                            {config.qualityType === 'multi_dimension' && (
+                                <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
+                                    <label className="text-sm font-medium text-slate-300 mb-2">"Good" Value for Dimensions</label>
+                                    <p className="text-xs text-slate-500 mb-2">What value indicates "good" in quality dimensions?</p>
+                                    <input
+                                        type="text"
+                                        value={config.goodValue}
+                                        onChange={(e) => updateConfig('goodValue', e.target.value)}
+                                        placeholder="e.g., Good, Pass, Yes"
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white"
+                                    />
+                                </div>
+                            )}
+
+                            {/* Info about chat */}
+                            <div className="p-5 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <MessageSquare className="h-5 w-5 text-purple-400" />
+                                    <h4 className="text-sm font-semibold text-purple-300">Need Custom Calculations?</h4>
+                                </div>
+                                <p className="text-sm text-purple-200/80">
+                                    After generating your dashboard, use the <strong>Chat</strong> button to ask the AI assistant for help with:
+                                </p>
+                                <ul className="mt-2 text-sm text-purple-200/70 space-y-1 ml-5 list-disc">
+                                    <li>Custom quality calculations</li>
+                                    <li>Additional metrics or breakdowns</li>
+                                    <li>Data filtering and analysis</li>
+                                    <li>Modifying thresholds</li>
+                                </ul>
                             </div>
-                          )}
-                  
-                          {/* Info about chat */}
-                          <div className="p-5 bg-purple-500/10 border border-purple-500/30 rounded-xl">
-                            <div className="flex items-center gap-2 mb-3">
-                              <MessageSquare className="h-5 w-5 text-purple-400" />
-                              <h4 className="text-sm font-semibold text-purple-300">Need Custom Calculations?</h4>
-                            </div>
-                            <p className="text-sm text-purple-200/80">
-                              After generating your dashboard, use the <strong>Chat</strong> button to ask the AI assistant for help with:
-                            </p>
-                            <ul className="mt-2 text-sm text-purple-200/70 space-y-1 ml-5 list-disc">
-                              <li>Custom quality calculations</li>
-                              <li>Additional metrics or breakdowns</li>
-                              <li>Data filtering and analysis</li>
-                              <li>Modifying thresholds</li>
-                            </ul>
-                          </div>
                         </div>
-                  
+
                         {/* Summary */}
                         <div className="mt-8 p-6 bg-indigo-500/10 border border-indigo-500/30 rounded-xl">
-                          <h3 className="text-lg font-semibold text-indigo-300 mb-4">📋 Configuration Summary</h3>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div>
-                              <div className="text-slate-400">Project</div>
-                              <div className="text-white font-medium">{PROJECT_TYPES[config.projectType]?.name || '-'}</div>
+                            <h3 className="text-lg font-semibold text-indigo-300 mb-4">📋 Configuration Summary</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div>
+                                    <div className="text-slate-400">Project</div>
+                                    <div className="text-white font-medium">{PROJECT_TYPES[config.projectType]?.name || '-'}</div>
+                                </div>
+                                <div>
+                                    <div className="text-slate-400">Quality System</div>
+                                    <div className="text-white font-medium">{QUALITY_TYPES[config.qualityType]?.name || '-'}</div>
+                                </div>
+                                <div>
+                                    <div className="text-slate-400">Expert Column</div>
+                                    <div className="text-white font-medium">{config.expertIdColumn || '-'}</div>
+                                </div>
+                                <div>
+                                    <div className="text-slate-400">Score Column</div>
+                                    <div className="text-white font-medium">{config.scoreColumn || '-'}</div>
+                                </div>
                             </div>
-                            <div>
-                              <div className="text-slate-400">Quality System</div>
-                              <div className="text-white font-medium">{QUALITY_TYPES[config.qualityType]?.name || '-'}</div>
-                            </div>
-                            <div>
-                              <div className="text-slate-400">Expert Column</div>
-                              <div className="text-white font-medium">{config.expertIdColumn || '-'}</div>
-                            </div>
-                            <div>
-                              <div className="text-slate-400">Score Column</div>
-                              <div className="text-white font-medium">{config.scoreColumn || '-'}</div>
-                            </div>
-                          </div>
                         </div>
-                      </div>
-                    );
+                    </div>
+                );
 
             default:
                 return null;
@@ -3006,23 +3005,23 @@ export default function QADashboardGenerator() {
         if (!processedData) return [];
         const byCategory = {};
         processedData.filter(r => r.category).forEach(r => {
-          if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0 };
-          byCategory[r.category].count++;
-          if (r.status === 'pass') byCategory[r.category].pass++;
-          if (r.status === 'minor') byCategory[r.category].minor++;  // ADD THIS LINE
-          if (r.status === 'fail') byCategory[r.category].fail++;
+            if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0 };
+            byCategory[r.category].count++;
+            if (r.status === 'pass') byCategory[r.category].pass++;
+            if (r.status === 'minor') byCategory[r.category].minor++;  // ADD THIS LINE
+            if (r.status === 'fail') byCategory[r.category].fail++;
         });
-      
+
         return Object.entries(byCategory).map(([cat, data]) => ({
-          Category: cat,
-          Count: data.count,
-          Pass: data.pass,
-          Minor: data.minor,  // ADD THIS LINE
-          Fail: data.fail,
-          'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,  // FIX THIS LINE
-          'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0
+            Category: cat,
+            Count: data.count,
+            Pass: data.pass,
+            Minor: data.minor,  // ADD THIS LINE
+            Fail: data.fail,
+            'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,  // FIX THIS LINE
+            'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0
         })).sort((a, b) => b.Count - a.Count);
-      }, [processedData]);
+    }, [processedData]);
 
     // Reviewer stats
     const reviewerStats = useMemo(() => {
@@ -3350,7 +3349,8 @@ export default function QADashboardGenerator() {
                             columns={['Expert', 'Total', 'Pass', 'Minor', 'Fail', 'Approval %', 'Minor %', 'Defect %', ...(metrics.avgQuality !== null ? ['Quality %'] : [])]} />
                     )}
                     {config.showTables.category && categoryBreakdown.length > 0 && (
-                        <DataTable data={categoryBreakdown} title="Category Breakdown" columns={['Category', 'Count', 'Pass', 'Fail', 'Approval %', 'Defect %']} />
+                        <DataTable data={categoryBreakdown} title="Category Breakdown"
+                            columns={['Category', 'Count', 'Pass', 'Minor', 'Fail', 'Approval %', 'Defect %']} />
                     )}
                     {config.showTables.reviewer && reviewerStats.length > 0 && (
                         <DataTable data={reviewerStats} title="Reviewer Statistics" columns={['Reviewer', 'Total Reviews', 'Pass Given', 'Minor Given', 'Fail Given', 'Pass %', 'Fail %']} />
