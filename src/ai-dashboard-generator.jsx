@@ -3006,21 +3006,23 @@ export default function QADashboardGenerator() {
         if (!processedData) return [];
         const byCategory = {};
         processedData.filter(r => r.category).forEach(r => {
-            if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, fail: 0 };
-            byCategory[r.category].count++;
-            if (r.status === 'pass') byCategory[r.category].pass++;
-            if (r.status === 'fail') byCategory[r.category].fail++;
+          if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0 };
+          byCategory[r.category].count++;
+          if (r.status === 'pass') byCategory[r.category].pass++;
+          if (r.status === 'minor') byCategory[r.category].minor++;  // ADD THIS LINE
+          if (r.status === 'fail') byCategory[r.category].fail++;
         });
-
+      
         return Object.entries(byCategory).map(([cat, data]) => ({
-            Category: cat,
-            Count: data.count,
-            Pass: data.pass,
-            Fail: data.fail,
-            'Approval %': data.count > 0 ? (data.pass / data.count) * 100 : 0,
-            'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0
+          Category: cat,
+          Count: data.count,
+          Pass: data.pass,
+          Minor: data.minor,  // ADD THIS LINE
+          Fail: data.fail,
+          'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,  // FIX THIS LINE
+          'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0
         })).sort((a, b) => b.Count - a.Count);
-    }, [processedData]);
+      }, [processedData]);
 
     // Reviewer stats
     const reviewerStats = useMemo(() => {
