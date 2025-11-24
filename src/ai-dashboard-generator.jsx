@@ -1219,7 +1219,6 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
                     content: 'Configuration updated! The dashboard has been reconfigured with your changes.'
                 }]);
             }
-
         } catch (error) {
             console.error('Chat error:', error);
             setMessages(prev => [...prev, {
@@ -3130,7 +3129,7 @@ export default function QADashboardGenerator() {
         const minorCount = validData.filter(r => r.status === 'minor').length;
         const failCount = validData.filter(r => r.status === 'fail').length;
 
-        // FIX: Approval should include both pass and minor
+        // Approval should include both pass and minor
         const approvalRate = totalValid > 0 ? ((passCount + minorCount) / totalValid) * 100 : 0;
         const defectRate = totalValid > 0 ? (failCount / totalValid) * 100 : 0;
 
@@ -3138,9 +3137,27 @@ export default function QADashboardGenerator() {
         const avgQuality = qualityScores.length > 0
             ? qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length : null;
 
+        // Correlation between quality score and approval (pass/minor treated as approval = 1)
+        let qualityApprovalCorrelation = null;
+        const pairs = validData
+            .filter(r => r.qualityScore !== null)
+            .map(r => ({
+                q: r.qualityScore,
+                a: (r.status === 'pass' || r.status === 'minor') ? 1 : 0
+            }));
+        if (pairs.length >= 2) {
+            const meanQ = pairs.reduce((s, p) => s + p.q, 0) / pairs.length;
+            const meanA = pairs.reduce((s, p) => s + p.a, 0) / pairs.length;
+            const covariance = pairs.reduce((s, p) => s + ((p.q - meanQ) * (p.a - meanA)), 0);
+            const stdQ = Math.sqrt(pairs.reduce((s, p) => s + Math.pow(p.q - meanQ, 2), 0));
+            const stdA = Math.sqrt(pairs.reduce((s, p) => s + Math.pow(p.a - meanA, 2), 0));
+            const denom = stdQ * stdA;
+            qualityApprovalCorrelation = denom > 0 ? covariance / denom : null;
+        }
+
         return {
             total, totalValid, excluded, passCount, minorCount, failCount,
-            approvalRate, defectRate, avgQuality,
+            approvalRate, defectRate, avgQuality, qualityApprovalCorrelation,
             uniqueExperts: new Set(processedData.map(r => r.expertId)).size,
             uniqueCategories: new Set(processedData.map(r => r.category).filter(Boolean)).size,
             uniqueReviewers: new Set(processedData.map(r => r.reviewer).filter(Boolean)).size
@@ -3185,16 +3202,17 @@ export default function QADashboardGenerator() {
         if (!processedData) return [];
         const byCategory = {};
         
-        // Only count non-excluded records with valid status
         processedData.filter(r => r.category && !r.isExcluded).forEach(r => {
-          if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0 };
+          if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
           
-          // Only count if it has a valid status
           if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
             byCategory[r.category].count++;
             if (r.status === 'pass') byCategory[r.category].pass++;
             if (r.status === 'minor') byCategory[r.category].minor++;
             if (r.status === 'fail') byCategory[r.category].fail++;
+          }
+          if (r.qualityScore !== null) {
+            byCategory[r.category].qualityScores.push(r.qualityScore);
           }
         });
       
@@ -3205,7 +3223,10 @@ export default function QADashboardGenerator() {
           Minor: data.minor,
           Fail: data.fail,
           'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,
-          'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0
+          'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0,
+          'Quality %': data.qualityScores.length > 0
+            ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
+            : null
         })).sort((a, b) => b.Count - a.Count);
       }, [processedData]);
 
@@ -3216,14 +3237,16 @@ export default function QADashboardGenerator() {
         
         // Only count non-excluded records with valid status
         processedData.filter(r => r.reviewer && !r.isExcluded).forEach(r => {
-          if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviews: 0, pass: 0, minor: 0, fail: 0 };
+          if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviews: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
           
-          // Only count if it has a valid status
           if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
             byReviewer[r.reviewer].reviews++;
             if (r.status === 'pass') byReviewer[r.reviewer].pass++;
             else if (r.status === 'minor') byReviewer[r.reviewer].minor++;
             else if (r.status === 'fail') byReviewer[r.reviewer].fail++;
+          }
+          if (r.qualityScore !== null) {
+            byReviewer[r.reviewer].qualityScores.push(r.qualityScore);
           }
         });
       
@@ -3234,7 +3257,10 @@ export default function QADashboardGenerator() {
           'Minor Given': data.minor,
           'Fail Given': data.fail,
           'Approval %': data.reviews > 0 ? ((data.pass + data.minor) / data.reviews) * 100 : 0,
-          'Fail %': data.reviews > 0 ? (data.fail / data.reviews) * 100 : 0
+          'Fail %': data.reviews > 0 ? (data.fail / data.reviews) * 100 : 0,
+          'Quality %': data.qualityScores.length > 0
+            ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
+            : null
         })).sort((a, b) => b['Total Reviews'] - a['Total Reviews']);
       }, [processedData]);
 
@@ -3261,6 +3287,20 @@ export default function QADashboardGenerator() {
         });
         return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
       }, [processedData]);
+
+    const qualityTrend = useMemo(() => {
+        if (!processedData) return [];
+        const byDate = {};
+        processedData.filter(r => r.date && r.qualityScore !== null && !r.isExcluded).forEach(r => {
+            if (!byDate[r.date]) byDate[r.date] = { date: r.date, sum: 0, count: 0 };
+            byDate[r.date].sum += r.qualityScore;
+            byDate[r.date].count += 1;
+        });
+        return Object.values(byDate)
+            .map(d => ({ date: d.date, quality: d.count > 0 ? d.sum / d.count : 0 }))
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .slice(-30);
+    }, [processedData]);
 
     // Landing Page
     if (showLandingPage) {
@@ -3429,6 +3469,9 @@ export default function QADashboardGenerator() {
                         {metrics.avgQuality !== null && (
                             <MetricCard title="Avg Quality" value={`${metrics.avgQuality.toFixed(1)}%`} subtitle="across dimensions" icon={Award} color="amber" />
                         )}
+                        {metrics.qualityApprovalCorrelation !== null && (
+                            <MetricCard title="Quality vs Approval" value={metrics.qualityApprovalCorrelation.toFixed(2)} subtitle="correlation (r)" icon={Activity} color="rose" />
+                        )}
                     </div>
 
                     {/* Charts */}
@@ -3527,6 +3570,24 @@ export default function QADashboardGenerator() {
 )}
                     </div>
 
+                    {qualityTrend.length > 0 && (
+                        <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+                            <h3 className="text-lg font-semibold text-white mb-4">Quality Over Time</h3>
+                            <ResponsiveContainer width="100%" height={280}>
+                                <LineChart data={qualityTrend}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                                    <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
+                                        tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth()+1}/${dt.getDate()}`; }} />
+                                    <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+                                    <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                        itemStyle={{ color: '#e2e8f0' }} />
+                                    <Line type="monotone" dataKey="quality" stroke="#a855f7" strokeWidth={2} dot={false} name="Quality %" />
+                                    <Legend />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
+
                     {/* Category Chart */}
                     {categoryBreakdown.length > 0 && (
                         <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
@@ -3552,11 +3613,11 @@ export default function QADashboardGenerator() {
                     )}
                     {config.showTables.category && categoryBreakdown.length > 0 && (
                         <DataTable data={categoryBreakdown} title="Category Breakdown"
-                            columns={['Category', 'Count', 'Pass', 'Minor', 'Fail', 'Approval %', 'Defect %']} />
+                            columns={['Category', 'Count', 'Pass', 'Minor', 'Fail', 'Approval %', 'Defect %', 'Quality %']} />
                     )}
                     {config.showTables.reviewer && reviewerStats.length > 0 && (
                         <DataTable data={reviewerStats} title="Reviewer Statistics"
-                            columns={['Reviewer', 'Total Reviews', 'Pass Given', 'Minor Given', 'Fail Given', 'Approval %', 'Fail %']} />
+                            columns={['Reviewer', 'Total Reviews', 'Pass Given', 'Minor Given', 'Fail Given', 'Approval %', 'Fail %', 'Quality %']} />
                     )}
                     {config.showTables.detailed && processedData.length > 0 && (
                         <DataTable data={processedData.slice(0, 500).map(r => ({
