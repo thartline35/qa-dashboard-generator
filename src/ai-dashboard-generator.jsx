@@ -3119,7 +3119,8 @@ export default function QADashboardGenerator() {
             const scoreRaw = row[config.scoreColumn];
             const scoreStr = scoreRaw !== null && scoreRaw !== undefined ? String(scoreRaw).trim() : '';
             const scoreLower = scoreStr.toLowerCase();
-            const numScore = parseFloat(scoreStr);
+            const numericPart = scoreStr.replace(/[^0-9.+-]/g, '');
+            const numScore = numericPart !== '' ? parseFloat(numericPart) : NaN;
             const scoreLooksNumeric = scoreStr !== '' && !isNaN(numScore);
             const forceNumeric = config.scoringMode === 'numeric_score';
             const autoNumeric = !qualityConfig && scoreLooksNumeric && config.passValues.length === 0 && config.failValues.length === 0 && config.minorValues.length === 0;
@@ -3133,13 +3134,13 @@ export default function QADashboardGenerator() {
                     // Numeric scoring system
                     if (!isNaN(numScore)) {
                         // Get thresholds with proper fallbacks
-                        const failThreshold = (config.numericFailThreshold !== null && config.numericFailThreshold !== undefined) 
-                            ? config.numericFailThreshold 
+                        const failThreshold = Number.isFinite(config.numericFailThreshold)
+                            ? config.numericFailThreshold
                             : (qualityConfig?.defaultFailThreshold ?? 0);
-                        const minorThreshold = (config.numericMinorThreshold !== null && config.numericMinorThreshold !== undefined)
-                            ? config.numericMinorThreshold 
+                        const minorThreshold = Number.isFinite(config.numericMinorThreshold)
+                            ? config.numericMinorThreshold
                             : (qualityConfig?.defaultMinorThreshold ?? (failThreshold + 1));
-    
+
                         if (numScore < failThreshold) {
                             status = 'fail';
                         } else if (numScore < minorThreshold) {
