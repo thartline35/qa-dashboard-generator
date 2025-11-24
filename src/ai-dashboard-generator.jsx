@@ -1863,6 +1863,8 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
         failValues: [],
         excludeValues: [],
         goodValue: 'Good',
+        scoringMode: 'auto',
+        metricNeeds: { approval: true, quality: true, consensus: false, custom: '' },
         // Numeric thresholds
         numericFailThreshold: null,   // Below this = fail
         numericMinorThreshold: null,  // Below this (but >= fail threshold) = minor
@@ -2041,6 +2043,71 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
                                     <div className="text-sm text-slate-400 ml-8">{type.description}</div>
                                 </button>
                             ))}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 rounded-xl border border-white/10 bg-white/5">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Target className="h-4 w-4 text-indigo-400" />
+                                    <div className="text-sm font-semibold text-white">Scoring Mode</div>
+                                </div>
+                                <div className="space-y-2">
+                                    {['auto', 'discrete_quality', 'numeric_score', 'consensus'].map(mode => (
+                                        <label key={mode} className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="scoringMode"
+                                                value={mode}
+                                                checked={config.scoringMode === mode}
+                                                onChange={() => updateConfig('scoringMode', mode)}
+                                                className="text-indigo-500 focus:ring-indigo-500"
+                                            />
+                                            <span className="capitalize">{mode.replace('_', ' ')}</span>
+                                        </label>
+                                    ))}
+                                    <p className="text-xs text-slate-500 mt-2">Auto will pick based on your columns; consensus expects multiple reviewer/decision columns for the same task.</p>
+                                </div>
+                            </div>
+
+                            <div className="p-4 rounded-xl border border-white/10 bg-white/5">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Activity className="h-4 w-4 text-emerald-400" />
+                                    <div className="text-sm font-semibold text-white">Metrics Needed</div>
+                                </div>
+                                <div className="space-y-2 text-sm text-slate-300">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={config.metricNeeds.approval}
+                                            onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, approval: e.target.checked })}
+                                        />
+                                        Approval / Pass-Fail
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={config.metricNeeds.quality}
+                                            onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, quality: e.target.checked })}
+                                        />
+                                        Quality Score
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={config.metricNeeds.consensus}
+                                            onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, consensus: e.target.checked })}
+                                        />
+                                        Consensus (multiple reviews per task)
+                                    </label>
+                                    <textarea
+                                        value={config.metricNeeds.custom || ''}
+                                        onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, custom: e.target.value })}
+                                        placeholder="Other: e.g., average grade per task, dual-score comparisons, payment-adjusted quality..."
+                                        className="w-full mt-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                        rows={3}
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 );
@@ -3007,6 +3074,7 @@ export default function QADashboardGenerator() {
             const scoreRaw = row[config.scoreColumn];
             const scoreStr = scoreRaw !== null && scoreRaw !== undefined ? String(scoreRaw).trim() : '';
             const scoreLower = scoreStr.toLowerCase();
+            const numScore = parseFloat(scoreStr);
 
             let status = 'unknown';
             let isExcluded = config.excludeValues.some(v => v.toLowerCase() === scoreLower);
@@ -3100,6 +3168,12 @@ export default function QADashboardGenerator() {
                     String(row[col] || '').trim().toLowerCase() === config.goodValue.toLowerCase()
                 ).length;
                 qualityScore = (goodCount / config.qualityDimensionColumns.length) * 100;
+            } else if ((config.scoringMode === 'numeric_score' || isNumeric) && !isNaN(numScore)) {
+                // Map numeric scores to a 0-100 quality scale based on configured min/max
+                const minVal = qualityConfig?.minValue ?? 0;
+                const maxVal = qualityConfig?.maxValue ?? 100;
+                const clamped = Math.min(Math.max(numScore, minVal), maxVal);
+                qualityScore = ((clamped - minVal) / (maxVal - minVal)) * 100;
             }
 
             return {
