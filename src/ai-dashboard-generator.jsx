@@ -1945,9 +1945,9 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
         const qualityConfig = QUALITY_TYPES[type];
         if (qualityConfig) {
             if (qualityConfig.isNumeric) {
-                // Set numeric thresholds
-                updateConfig('numericFailThreshold', qualityConfig.defaultFailThreshold);
-                updateConfig('numericMinorThreshold', qualityConfig.defaultMinorThreshold);
+                // Only seed defaults if user hasn't set them yet
+                updateConfig('numericFailThreshold', config.numericFailThreshold ?? qualityConfig.defaultFailThreshold);
+                updateConfig('numericMinorThreshold', config.numericMinorThreshold ?? qualityConfig.defaultMinorThreshold);
             } else {
                 // Set discrete values
                 updateConfig('passValues', qualityConfig.defaultPass || []);
