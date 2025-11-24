@@ -1137,6 +1137,14 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
                 const allColumns = processedData && processedData.length > 0
                     ? Object.keys(processedData[0].raw || {})
                     : [];
+                const sampleRaw = processedData && processedData.length > 0 ? (processedData.find(r => r.raw)?.raw || {}) : {};
+                const pickFirstStringColumn = () => allColumns.find(c => typeof sampleRaw[c] === 'string') || allColumns[0];
+                const pickFirstNumericColumn = () => {
+                    const numeric = allColumns.find(c => typeof sampleRaw[c] === 'number');
+                    if (numeric) return numeric;
+                    const parsed = allColumns.find(c => !isNaN(parseFloat(sampleRaw[c])));
+                    return parsed;
+                };
 
                 // Validate qualityDimensionColumns
                 if (incomingChanges.qualityDimensionColumns) {
@@ -1156,8 +1164,12 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
                 if (incomingChanges.customCharts) {
                     incomingChanges.customCharts = incomingChanges.customCharts.map(chart => {
                         const metricNeedsColumn = chart.metric && ['avg', 'sum', 'min', 'max'].includes(chart.metric);
-                        const metricColumn = chart.metricColumn || (metricNeedsColumn ? config.scoreColumn : undefined);
-                        const groupBy = chart.groupBy || config.categoryColumn || config.expertIdColumn;
+                        const metricColumn = chart.metricColumn && chart.metricColumn !== 'auto'
+                            ? chart.metricColumn
+                            : (metricNeedsColumn ? (config.scoreColumn || pickFirstNumericColumn()) : undefined);
+                        const groupBy = chart.groupBy && chart.groupBy !== 'auto'
+                            ? chart.groupBy
+                            : (config.categoryColumn || config.expertIdColumn || pickFirstStringColumn());
                         return { type: 'bar', ...chart, metricColumn, groupBy };
                     });
 
@@ -1180,7 +1192,9 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
                 if (incomingChanges.customCalculations) {
                     incomingChanges.customCalculations = incomingChanges.customCalculations.map(calc => {
                         const operationNeedsColumn = ['sum', 'avg', 'min', 'max'].includes(calc.operation || '');
-                        const column = calc.column || (operationNeedsColumn ? config.scoreColumn : undefined);
+                        const column = calc.column && calc.column !== 'auto'
+                            ? calc.column
+                            : (operationNeedsColumn ? (config.scoreColumn || pickFirstNumericColumn()) : undefined);
                         return { ...calc, column };
                     });
 
