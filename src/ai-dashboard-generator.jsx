@@ -1004,14 +1004,14 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
 
     const buildSystemPrompt = () => {
         // Get sample of actual data structure
-        const sampleData = processedData && processedData.length > 0
-            ? JSON.stringify(processedData[0].raw, null, 2)
-            : 'No data available';
-
-        const availableColumns = processedData && processedData.length > 0
-            ? Object.keys(processedData[0].raw || {})
-            : [];
-
+        const sampleData = processedData && processedData.length > 0 
+          ? JSON.stringify(processedData[0].raw, null, 2) 
+          : 'No data available';
+          
+        const availableColumns = processedData && processedData.length > 0 
+          ? Object.keys(processedData[0].raw || {}) 
+          : [];
+      
         return `You are an AI assistant helping a user analyze their REAL QA data. You work ONLY with actual data that exists - you NEVER make up, alter, or fabricate values.
       
       **CRITICAL RULES:**
@@ -1091,7 +1091,7 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
       - "Calculate ROI" → If cost/revenue columns don't exist, explain they need to be in the data
       
       Your job: Help users extract maximum insights from their ACTUAL data through smart calculations, filters, groupings, and visualizations.`;
-    };
+      };
 
     const handleSend = async () => {
         if (!input.trim() || isProcessing) return;
@@ -1942,11 +1942,11 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
 
     const handleQualityTypeSelect = (type) => {
         const qualityConfig = QUALITY_TYPES[type];
-
+        
         // Use functional update to avoid stale closure issues
         setConfig(prev => {
             const updates = { ...prev, qualityType: type };
-
+            
             if (qualityConfig) {
                 if (qualityConfig.isNumeric) {
                     // Always set defaults for numeric types
@@ -1966,7 +1966,7 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
                     updates.numericMinorThreshold = null;
                 }
             }
-
+            
             return updates;
         });
     };
@@ -2347,7 +2347,7 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
                                                         const parsed = parseFloat(val);
                                                         updateConfig('numericFailThreshold', isNaN(parsed) ? qualityConfig.defaultFailThreshold : parsed);
                                                     }
-                                                }} className="w-full px-4 py-3 bg-white/5 border border-rose-500/50 rounded-xl text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                                                }}                                                className="w-full px-4 py-3 bg-white/5 border border-rose-500/50 rounded-xl text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-rose-500/50"
                                             />
                                             <div className="mt-2 text-xs text-rose-300/50">
                                                 Example: Score of {Math.floor((config.numericFailThreshold ?? qualityConfig.defaultFailThreshold) - 1)} = <span className="text-rose-400 font-semibold">FAIL</span>
@@ -2381,7 +2381,7 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
                                                         const parsed = parseFloat(val);
                                                         updateConfig('numericMinorThreshold', isNaN(parsed) ? qualityConfig.defaultMinorThreshold : parsed);
                                                     }
-                                                }} className="w-full px-4 py-3 bg-white/5 border border-amber-500/50 rounded-xl text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                                                }}                                                className="w-full px-4 py-3 bg-white/5 border border-amber-500/50 rounded-xl text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/50"
                                             />
                                             <div className="mt-2 text-xs text-amber-300/50">
                                                 Example: Score of {Math.floor((config.numericMinorThreshold ?? qualityConfig.defaultMinorThreshold) - 1)} = <span className="text-amber-400 font-semibold">MINOR (Weak Pass)</span>
@@ -3133,13 +3133,13 @@ export default function QADashboardGenerator() {
                     // Numeric scoring system
                     if (!isNaN(numScore)) {
                         // Get thresholds with proper fallbacks
-                        const failThreshold = (config.numericFailThreshold !== null && config.numericFailThreshold !== undefined)
-                            ? config.numericFailThreshold
+                        const failThreshold = (config.numericFailThreshold !== null && config.numericFailThreshold !== undefined) 
+                            ? config.numericFailThreshold 
                             : (qualityConfig?.defaultFailThreshold ?? 0);
                         const minorThreshold = (config.numericMinorThreshold !== null && config.numericMinorThreshold !== undefined)
-                            ? config.numericMinorThreshold
+                            ? config.numericMinorThreshold 
                             : (qualityConfig?.defaultMinorThreshold ?? (failThreshold + 1));
-
+    
                         if (numScore < failThreshold) {
                             status = 'fail';
                         } else if (numScore < minorThreshold) {
@@ -3152,7 +3152,7 @@ export default function QADashboardGenerator() {
                         status = 'unknown';
                         console.warn(`Non-numeric score found: "${scoreStr}" for expert ${expertId}`);
                     }
-                } else {
+                }else {
                     // Discrete value system (existing logic)
                     const isMinor = config.minorValues.some(v => v.toLowerCase() === scoreLower);
                     const isPass = config.passValues.some(v => v.toLowerCase() === scoreLower);
@@ -3164,25 +3164,7 @@ export default function QADashboardGenerator() {
                 }
             }
 
-            // Debug: Log processed data stats
-            React.useEffect(() => {
-                if (processedData && config) {
-                    const qualityConfig = QUALITY_TYPES[config.qualityType];
-                    console.log('=== Processed Data Debug ===');
-                    console.log('Quality Type:', config.qualityType);
-                    console.log('Is Numeric:', qualityConfig?.isNumeric);
-                    console.log('Fail Threshold:', config.numericFailThreshold);
-                    console.log('Minor Threshold:', config.numericMinorThreshold);
-                    console.log('Total records:', processedData.length);
-                    const statusCounts = processedData.reduce((acc, r) => {
-                        acc[r.status] = (acc[r.status] || 0) + 1;
-                        return acc;
-                    }, {});
-                    console.log('Status counts:', statusCounts);
-                    console.log('Sample records:', processedData.slice(0, 3));
-                }
-            }, [processedData, config]);
-
+            
             let date = '';
             if (config.timestampColumn && row[config.timestampColumn]) {
                 const rawDate = row[config.timestampColumn];
@@ -3355,68 +3337,68 @@ export default function QADashboardGenerator() {
     const categoryBreakdown = useMemo(() => {
         if (!processedData) return [];
         const byCategory = {};
-
+        
         processedData.filter(r => r.category && !r.isExcluded).forEach(r => {
-            if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
-
-            if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
-                byCategory[r.category].count++;
-                if (r.status === 'pass') byCategory[r.category].pass++;
-                if (r.status === 'minor') byCategory[r.category].minor++;
-                if (r.status === 'fail') byCategory[r.category].fail++;
-            }
-            if (r.qualityScore !== null) {
-                byCategory[r.category].qualityScores.push(r.qualityScore);
-            }
+          if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
+          
+          if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
+            byCategory[r.category].count++;
+            if (r.status === 'pass') byCategory[r.category].pass++;
+            if (r.status === 'minor') byCategory[r.category].minor++;
+            if (r.status === 'fail') byCategory[r.category].fail++;
+          }
+          if (r.qualityScore !== null) {
+            byCategory[r.category].qualityScores.push(r.qualityScore);
+          }
         });
-
+      
         return Object.entries(byCategory).map(([cat, data]) => ({
-            Category: cat,
-            Count: data.count,
-            Pass: data.pass,
-            Minor: data.minor,
-            Fail: data.fail,
-            'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,
-            'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0,
-            'Quality %': data.qualityScores.length > 0
-                ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
-                : null
+          Category: cat,
+          Count: data.count,
+          Pass: data.pass,
+          Minor: data.minor,
+          Fail: data.fail,
+          'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,
+          'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0,
+          'Quality %': data.qualityScores.length > 0
+            ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
+            : null
         })).sort((a, b) => b.Count - a.Count);
-    }, [processedData]);
+      }, [processedData]);
 
     // Reviewer stats
     const reviewerStats = useMemo(() => {
         if (!processedData) return [];
         const byReviewer = {};
-
+        
         // Only count non-excluded records with valid status
         processedData.filter(r => r.reviewer && !r.isExcluded).forEach(r => {
-            if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviews: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
-
-            if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
-                byReviewer[r.reviewer].reviews++;
-                if (r.status === 'pass') byReviewer[r.reviewer].pass++;
-                else if (r.status === 'minor') byReviewer[r.reviewer].minor++;
-                else if (r.status === 'fail') byReviewer[r.reviewer].fail++;
-            }
-            if (r.qualityScore !== null) {
-                byReviewer[r.reviewer].qualityScores.push(r.qualityScore);
-            }
+          if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviews: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
+          
+          if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
+            byReviewer[r.reviewer].reviews++;
+            if (r.status === 'pass') byReviewer[r.reviewer].pass++;
+            else if (r.status === 'minor') byReviewer[r.reviewer].minor++;
+            else if (r.status === 'fail') byReviewer[r.reviewer].fail++;
+          }
+          if (r.qualityScore !== null) {
+            byReviewer[r.reviewer].qualityScores.push(r.qualityScore);
+          }
         });
-
+      
         return Object.entries(byReviewer).map(([reviewer, data]) => ({
-            Reviewer: reviewer,
-            'Total Reviews': data.reviews,
-            'Pass Given': data.pass,
-            'Minor Given': data.minor,
-            'Fail Given': data.fail,
-            'Approval %': data.reviews > 0 ? ((data.pass + data.minor) / data.reviews) * 100 : 0,
-            'Fail %': data.reviews > 0 ? (data.fail / data.reviews) * 100 : 0,
-            'Quality %': data.qualityScores.length > 0
-                ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
-                : null
+          Reviewer: reviewer,
+          'Total Reviews': data.reviews,
+          'Pass Given': data.pass,
+          'Minor Given': data.minor,
+          'Fail Given': data.fail,
+          'Approval %': data.reviews > 0 ? ((data.pass + data.minor) / data.reviews) * 100 : 0,
+          'Fail %': data.reviews > 0 ? (data.fail / data.reviews) * 100 : 0,
+          'Quality %': data.qualityScores.length > 0
+            ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
+            : null
         })).sort((a, b) => b['Total Reviews'] - a['Total Reviews']);
-    }, [processedData]);
+      }, [processedData]);
 
     // Chart data
     const statusDistribution = useMemo(() => {
@@ -3433,14 +3415,14 @@ export default function QADashboardGenerator() {
         if (!processedData) return [];
         const byDate = {};
         processedData.filter(r => r.date).forEach(r => {
-            if (!byDate[r.date]) byDate[r.date] = { date: r.date, total: 0, pass: 0, minor: 0, fail: 0 };
-            byDate[r.date].total++;
-            if (r.status === 'pass') byDate[r.date].pass++;
-            if (r.status === 'minor') byDate[r.date].minor++;  // ADD THIS LINE
-            if (r.status === 'fail') byDate[r.date].fail++;
+          if (!byDate[r.date]) byDate[r.date] = { date: r.date, total: 0, pass: 0, minor: 0, fail: 0 };
+          byDate[r.date].total++;
+          if (r.status === 'pass') byDate[r.date].pass++;
+          if (r.status === 'minor') byDate[r.date].minor++;  // ADD THIS LINE
+          if (r.status === 'fail') byDate[r.date].fail++;
         });
         return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
-    }, [processedData]);
+      }, [processedData]);
 
     const qualityTrend = useMemo(() => {
         if (!processedData) return [];
@@ -3667,61 +3649,61 @@ export default function QADashboardGenerator() {
                         </div>
 
                         {trendData.length > 0 && (
-                            <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
-                                <h3 className="text-lg font-semibold text-white mb-4">Submissions Over Time</h3>
-                                <ResponsiveContainer width="100%" height={280}>
-                                    {config.chartPreferences.trendChart === 'bar' ? (
-                                        <BarChart data={trendData}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                                            <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
-                                                tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; }} />
-                                            <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-                                            <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
-                                                itemStyle={{ color: '#e2e8f0' }} />
-                                            <Bar dataKey="total" fill="#6366F1" radius={[4, 4, 0, 0]} name="Total" />
-                                            <Bar dataKey="pass" fill="#10b981" radius={[4, 4, 0, 0]} name="Pass" />
-                                            <Bar dataKey="minor" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Minor" />
-                                            <Bar dataKey="fail" fill="#ef4444" radius={[4, 4, 0, 0]} name="Fail" />
-                                            <Legend />
-                                        </BarChart>
-                                    ) : config.chartPreferences.trendChart === 'line' ? (
-                                        <LineChart data={trendData}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                                            <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
-                                                tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; }} />
-                                            <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-                                            <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
-                                                itemStyle={{ color: '#e2e8f0' }} />
-                                            <Line type="monotone" dataKey="total" stroke="#6366F1" strokeWidth={2} name="Total" />
-                                            <Line type="monotone" dataKey="pass" stroke="#10b981" strokeWidth={2} name="Pass" />
-                                            <Line type="monotone" dataKey="minor" stroke="#f59e0b" strokeWidth={2} name="Minor" />
-                                            <Line type="monotone" dataKey="fail" stroke="#ef4444" strokeWidth={2} name="Fail" />
-                                            <Legend />
-                                        </LineChart>
-                                    ) : (
-                                        <AreaChart data={trendData}>
-                                            <defs>
-                                                <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
-                                                    <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
-                                                </linearGradient>
-                                            </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                                            <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
-                                                tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; }} />
-                                            <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-                                            <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
-                                                itemStyle={{ color: '#e2e8f0' }} />
-                                            <Area type="monotone" dataKey="total" stroke="#6366F1" fillOpacity={1} fill="url(#colorTotal)" name="Total" />
-                                            <Line type="monotone" dataKey="pass" stroke="#10b981" strokeWidth={2} dot={false} name="Pass" />
-                                            <Line type="monotone" dataKey="minor" stroke="#f59e0b" strokeWidth={2} dot={false} name="Minor" />
-                                            <Line type="monotone" dataKey="fail" stroke="#ef4444" strokeWidth={2} dot={false} name="Fail" />
-                                            <Legend />
-                                        </AreaChart>
-                                    )}
-                                </ResponsiveContainer>
-                            </div>
-                        )}
+  <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+    <h3 className="text-lg font-semibold text-white mb-4">Submissions Over Time</h3>
+    <ResponsiveContainer width="100%" height={280}>
+      {config.chartPreferences.trendChart === 'bar' ? (
+        <BarChart data={trendData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+          <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
+            tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth()+1}/${dt.getDate()}`; }} />
+          <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} 
+            itemStyle={{ color: '#e2e8f0' }} />
+          <Bar dataKey="total" fill="#6366F1" radius={[4, 4, 0, 0]} name="Total" />
+          <Bar dataKey="pass" fill="#10b981" radius={[4, 4, 0, 0]} name="Pass" />
+          <Bar dataKey="minor" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Minor" />
+          <Bar dataKey="fail" fill="#ef4444" radius={[4, 4, 0, 0]} name="Fail" />
+          <Legend />
+        </BarChart>
+      ) : config.chartPreferences.trendChart === 'line' ? (
+        <LineChart data={trendData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+          <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
+            tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth()+1}/${dt.getDate()}`; }} />
+          <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} 
+            itemStyle={{ color: '#e2e8f0' }} />
+          <Line type="monotone" dataKey="total" stroke="#6366F1" strokeWidth={2} name="Total" />
+          <Line type="monotone" dataKey="pass" stroke="#10b981" strokeWidth={2} name="Pass" />
+          <Line type="monotone" dataKey="minor" stroke="#f59e0b" strokeWidth={2} name="Minor" />
+          <Line type="monotone" dataKey="fail" stroke="#ef4444" strokeWidth={2} name="Fail" />
+          <Legend />
+        </LineChart>
+      ) : (
+        <AreaChart data={trendData}>
+          <defs>
+            <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="#6366F1" stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+          <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
+            tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth()+1}/${dt.getDate()}`; }} />
+          <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} 
+            itemStyle={{ color: '#e2e8f0' }} />
+          <Area type="monotone" dataKey="total" stroke="#6366F1" fillOpacity={1} fill="url(#colorTotal)" name="Total" />
+          <Line type="monotone" dataKey="pass" stroke="#10b981" strokeWidth={2} dot={false} name="Pass" />
+          <Line type="monotone" dataKey="minor" stroke="#f59e0b" strokeWidth={2} dot={false} name="Minor" />
+          <Line type="monotone" dataKey="fail" stroke="#ef4444" strokeWidth={2} dot={false} name="Fail" />
+          <Legend />
+        </AreaChart>
+      )}
+    </ResponsiveContainer>
+  </div>
+)}
                     </div>
 
                     {qualityTrend.length > 0 && (
@@ -3731,7 +3713,7 @@ export default function QADashboardGenerator() {
                                 <LineChart data={qualityTrend}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                                     <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
-                                        tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; }} />
+                                        tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth()+1}/${dt.getDate()}`; }} />
                                     <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
                                     <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
                                         itemStyle={{ color: '#e2e8f0' }} />
