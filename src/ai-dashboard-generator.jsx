@@ -1973,7 +1973,8 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
             case 2: return config.qualityType !== '';
             case 3: return config.expertIdColumn !== '' && config.scoreColumn !== '';
             case 4:
-                if (config.qualityType === 'percentage') return true;
+                const qualityCfg = QUALITY_TYPES[config.qualityType];
+                if (qualityCfg?.isNumeric || config.qualityType === 'percentage') return true;
                 return config.passValues.length > 0 || config.failValues.length > 0;
             default: return true;
         }
@@ -3083,7 +3084,7 @@ export default function QADashboardGenerator() {
         if (!rawData.length || !config) return null;
 
         const qualityConfig = QUALITY_TYPES[config.qualityType];
-        const isNumeric = qualityConfig?.isNumeric;
+        const isNumericConfig = qualityConfig?.isNumeric === true;
 
         return rawData.map(row => {
             const expertId = row[config.expertIdColumn] ? String(row[config.expertIdColumn]).trim() : '';
@@ -3091,6 +3092,10 @@ export default function QADashboardGenerator() {
             const scoreStr = scoreRaw !== null && scoreRaw !== undefined ? String(scoreRaw).trim() : '';
             const scoreLower = scoreStr.toLowerCase();
             const numScore = parseFloat(scoreStr);
+            const scoreLooksNumeric = scoreStr !== '' && !isNaN(numScore);
+            const forceNumeric = config.scoringMode === 'numeric_score';
+            const autoNumeric = !qualityConfig && scoreLooksNumeric && config.passValues.length === 0 && config.failValues.length === 0 && config.minorValues.length === 0;
+            const isNumeric = isNumericConfig || forceNumeric || autoNumeric;
 
             let status = 'unknown';
             let isExcluded = config.excludeValues.some(v => v.toLowerCase() === scoreLower);
@@ -3098,10 +3103,9 @@ export default function QADashboardGenerator() {
             if (!isExcluded) {
                 if (isNumeric) {
                     // Numeric scoring system
-                    const numScore = parseFloat(scoreStr);
                     if (!isNaN(numScore)) {
-                        const failThreshold = config.numericFailThreshold ?? qualityConfig.defaultFailThreshold;
-                        const minorThreshold = config.numericMinorThreshold ?? qualityConfig.defaultMinorThreshold;
+                        const failThreshold = config.numericFailThreshold ?? qualityConfig?.defaultFailThreshold ?? 0;
+                        const minorThreshold = config.numericMinorThreshold ?? qualityConfig?.defaultMinorThreshold ?? (failThreshold + 1);
 
                         if (numScore < failThreshold) {
                             status = 'fail';
@@ -3184,7 +3188,7 @@ export default function QADashboardGenerator() {
                     String(row[col] || '').trim().toLowerCase() === config.goodValue.toLowerCase()
                 ).length;
                 qualityScore = (goodCount / config.qualityDimensionColumns.length) * 100;
-            } else if ((config.scoringMode === 'numeric_score' || isNumeric) && !isNaN(numScore)) {
+            } else if (isNumeric && !isNaN(numScore)) {
                 // Map numeric scores to a 0-100 quality scale based on configured min/max
                 const minVal = qualityConfig?.minValue ?? 0;
                 const maxVal = qualityConfig?.maxValue ?? 100;
@@ -3253,6 +3257,10 @@ export default function QADashboardGenerator() {
             uniqueReviewers: new Set(processedData.map(r => r.reviewer).filter(Boolean)).size
         };
     }, [processedData]);
+
+    const passLabel = config?.passValues?.[0] || 'Pass';
+    const minorLabel = config?.minorValues?.[0] || 'Weak Pass (counts as pass)';
+    const failLabel = config?.failValues?.[0] || 'Fail';
 
     // Expert performance
     const expertPerformance = useMemo(() => {
@@ -3358,12 +3366,12 @@ export default function QADashboardGenerator() {
     const statusDistribution = useMemo(() => {
         if (!metrics) return [];
         return [
-            { name: 'Pass', value: metrics.passCount, color: '#10b981' },
-            { name: 'Minor', value: metrics.minorCount, color: '#f59e0b' },
-            { name: 'Fail', value: metrics.failCount, color: '#ef4444' },
+            { name: passLabel, value: metrics.passCount, color: '#10b981' },
+            { name: minorLabel, value: metrics.minorCount, color: '#f59e0b' },
+            { name: failLabel, value: metrics.failCount, color: '#ef4444' },
             { name: 'Excluded', value: metrics.excluded, color: '#6b7280' }
         ].filter(d => d.value > 0);
-    }, [metrics]);
+    }, [metrics, passLabel, minorLabel, failLabel]);
 
     const trendData = useMemo(() => {
         if (!processedData) return [];
@@ -3553,7 +3561,7 @@ export default function QADashboardGenerator() {
                     {/* Metrics */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                         <MetricCard title="Total Records" value={metrics.total.toLocaleString()} subtitle={`${metrics.excluded} excluded`} icon={FileSpreadsheet} color="indigo" />
-                        <MetricCard title="Approval Rate" value={`${metrics.approvalRate.toFixed(1)}%`} subtitle={`${metrics.passCount} passed`} icon={CheckCircle2} color="emerald" />
+                        <MetricCard title="Approval Rate" value={`${metrics.approvalRate.toFixed(1)}%`} subtitle={`${passLabel}+${minorLabel} count as pass`} icon={CheckCircle2} color="emerald" />
                         <MetricCard title="Defect Rate" value={`${metrics.defectRate.toFixed(1)}%`} subtitle={`${metrics.failCount} failed`} icon={AlertTriangle} color={metrics.defectRate > 10 ? 'rose' : 'emerald'} />
                         <MetricCard title="Unique Experts" value={metrics.uniqueExperts.toLocaleString()} subtitle={`${metrics.uniqueReviewers} reviewers`} icon={Users} color="cyan" />
                         {metrics.avgQuality !== null && (
@@ -3699,15 +3707,15 @@ export default function QADashboardGenerator() {
                     {/* Tables */}
                     {config.showTables.expert && expertPerformance.length > 0 && (
                         <DataTable data={expertPerformance} title="Expert Performance"
-                            columns={['Expert', 'Total', 'Pass', 'Minor', 'Fail', 'Approval %', 'Minor %', 'Defect %', ...(metrics.avgQuality !== null ? ['Quality %'] : [])]} />
+                            columns={['Expert', 'Total', passLabel, minorLabel, 'Fail', 'Approval %', `${minorLabel} %`, 'Defect %', ...(metrics.avgQuality !== null ? ['Quality %'] : [])]} />
                     )}
                     {config.showTables.category && categoryBreakdown.length > 0 && (
                         <DataTable data={categoryBreakdown} title="Category Breakdown"
-                            columns={['Category', 'Count', 'Pass', 'Minor', 'Fail', 'Approval %', 'Defect %', 'Quality %']} />
+                            columns={['Category', 'Count', passLabel, minorLabel, 'Fail', 'Approval %', 'Defect %', 'Quality %']} />
                     )}
                     {config.showTables.reviewer && reviewerStats.length > 0 && (
                         <DataTable data={reviewerStats} title="Reviewer Statistics"
-                            columns={['Reviewer', 'Total Reviews', 'Pass Given', 'Minor Given', 'Fail Given', 'Approval %', 'Fail %', 'Quality %']} />
+                            columns={['Reviewer', 'Total Reviews', `${passLabel} Given`, `${minorLabel} Given`, 'Fail Given', 'Approval %', 'Fail %', 'Quality %']} />
                     )}
                     {config.showTables.detailed && processedData.length > 0 && (
                         <DataTable data={processedData.slice(0, 500).map(r => ({
