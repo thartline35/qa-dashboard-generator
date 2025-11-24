@@ -971,6 +971,22 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
     const [isProcessing, setIsProcessing] = useState(false);
     const messagesEndRef = React.useRef(null);
 
+    const extractConfigUpdate = (text) => {
+        // Try fenced JSON first
+        const fenced = text.match(/```json\s*([\s\S]*?)\s*```/i) || text.match(/```\s*([\s\S]*?)\s*```/i);
+        const candidate = fenced ? fenced[1] : null;
+        try {
+            if (candidate) return JSON.parse(candidate);
+            const trimmed = text.trim();
+            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                return JSON.parse(trimmed);
+            }
+        } catch (e) {
+            console.error('Failed to parse assistant JSON:', e);
+        }
+        return null;
+    };
+
     // Update parent when messages change
     React.useEffect(() => {
         if (onMessagesChange) {
