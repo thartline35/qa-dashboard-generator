@@ -16,6 +16,7 @@
     "jsonpath": "^1.1.1",
     "lucide-react": "^0.554.0",
     "papaparse": "^5.5.3",
+    "tryer": "^1.0.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-scripts": "5.0.1",
