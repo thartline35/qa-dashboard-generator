@@ -1879,6 +1879,7 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
         failValues: [],
         excludeValues: [],
         goodValue: 'Good',
+        scoreFormat: 'numeric', // numeric | percentage | text | binary
         scoringMode: 'auto',
         metricNeeds: { approval: true, quality: true, consensus: false, custom: '' },
         // Numeric thresholds
@@ -1988,7 +1989,9 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
             case 3: return config.expertIdColumn !== '' && config.scoreColumn !== '';
             case 4:
                 const qualityCfg = QUALITY_TYPES[config.qualityType];
-                if (qualityCfg?.isNumeric || config.qualityType === 'percentage') return true;
+                const fmt = config.scoreFormat || 'numeric';
+                const numericLike = qualityCfg?.isNumeric || config.qualityType === 'percentage' || fmt === 'numeric' || fmt === 'percentage';
+                if (numericLike) return true;
                 return config.passValues.length > 0 || config.failValues.length > 0;
             default: return true;
         }
@@ -2074,6 +2077,36 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
                                     <div className="text-sm text-slate-400 ml-8">{type.description}</div>
                                 </button>
                             ))}
+                        </div>
+
+                        <div className="p-4 rounded-xl border border-white/10 bg-white/5">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Target className="h-4 w-4 text-indigo-400" />
+                                <div className="text-sm font-semibold text-white">Score Format</div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-slate-300">
+                                {[
+                                    { key: 'numeric', label: 'Numeric (whole numbers)', desc: 'e.g., 1, 3, 5' },
+                                    { key: 'percentage', label: 'Percentage/Decimal', desc: 'e.g., 0.76 or 76%' },
+                                    { key: 'text', label: 'Text labels', desc: 'e.g., Good/Bad, Pass/Fail' },
+                                    { key: 'binary', label: 'Binary', desc: 'e.g., Yes/No, True/False, 0/1' },
+                                ].map(opt => (
+                                    <label key={opt.key} className="flex items-start gap-2 cursor-pointer p-2 rounded-lg hover:bg-white/5">
+                                        <input
+                                            type="radio"
+                                            name="scoreFormat"
+                                            value={opt.key}
+                                            checked={config.scoreFormat === opt.key}
+                                            onChange={() => updateConfig('scoreFormat', opt.key)}
+                                            className="mt-1 text-indigo-500 focus:ring-indigo-500"
+                                        />
+                                        <div>
+                                            <div className="font-semibold text-white">{opt.label}</div>
+                                            <div className="text-xs text-slate-400">{opt.desc}</div>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3113,6 +3146,18 @@ export default function QADashboardGenerator() {
 
         const qualityConfig = QUALITY_TYPES[config.qualityType];
         const isNumericConfig = qualityConfig?.isNumeric === true;
+        const scoreFormat = config.scoreFormat || 'numeric';
+
+        // Collect numeric samples up-front for auto-threshold inference
+        const numericSamples = [];
+        rawData.forEach(row => {
+            const raw = row[config.scoreColumn];
+            const str = raw !== null && raw !== undefined ? String(raw).trim() : '';
+            const part = str.replace(/[^0-9.+-]/g, '');
+            const n = part !== '' ? parseFloat(part) : NaN;
+            if (!isNaN(n)) numericSamples.push(n);
+        });
+        const uniqueNumeric = Array.from(new Set(numericSamples)).sort((a, b) => a - b);
 
         return rawData.map(row => {
             const expertId = row[config.expertIdColumn] ? String(row[config.expertIdColumn]).trim() : '';
@@ -3122,28 +3167,43 @@ export default function QADashboardGenerator() {
             const numericPart = scoreStr.replace(/[^0-9.+-]/g, '');
             const numScore = numericPart !== '' ? parseFloat(numericPart) : NaN;
             const scoreLooksNumeric = scoreStr !== '' && !isNaN(numScore);
-            const forceNumeric = config.scoringMode === 'numeric_score';
+            const forceNumeric = config.scoringMode === 'numeric_score' || scoreFormat === 'numeric' || scoreFormat === 'percentage';
             const autoNumeric = !qualityConfig && scoreLooksNumeric && config.passValues.length === 0 && config.failValues.length === 0 && config.minorValues.length === 0;
             const isNumeric = isNumericConfig || forceNumeric || autoNumeric;
+            const isBinary = scoreFormat === 'binary';
 
             let status = 'unknown';
             let isExcluded = config.excludeValues.some(v => v.toLowerCase() === scoreLower);
 
             if (!isExcluded) {
                 if (isNumeric) {
-                    // Numeric scoring system
+                    // Numeric or percentage scoring system
                     if (!isNaN(numScore)) {
-                        // Get thresholds with proper fallbacks
-                        const failThreshold = Number.isFinite(config.numericFailThreshold)
-                            ? config.numericFailThreshold
-                            : (qualityConfig?.defaultFailThreshold ?? 0);
-                        const minorThreshold = Number.isFinite(config.numericMinorThreshold)
-                            ? config.numericMinorThreshold
-                            : (qualityConfig?.defaultMinorThreshold ?? (failThreshold + 1));
+                        const effectiveScore = (scoreFormat === "percentage" && numScore <= 1) ? (numScore * 100) : numScore;
 
-                        if (numScore < failThreshold) {
+                        // Thresholds: use user-set, else defaults, else infer from data
+                        let failThreshold = Number.isFinite(config.numericFailThreshold)
+                            ? config.numericFailThreshold
+                            : (qualityConfig?.defaultFailThreshold ?? (uniqueNumeric[0] ?? 0));
+                        let minorThreshold = Number.isFinite(config.numericMinorThreshold)
+                            ? config.numericMinorThreshold
+                            : (qualityConfig?.defaultMinorThreshold ?? (uniqueNumeric[1] ?? (failThreshold + 1)));
+
+                        if (!Number.isFinite(config.numericFailThreshold) && !Number.isFinite(config.numericMinorThreshold)) {
+                            if (uniqueNumeric.length >= 2) {
+                                failThreshold = uniqueNumeric[0];
+                                minorThreshold = uniqueNumeric[1];
+                            } else if (uniqueNumeric.length === 1) {
+                                failThreshold = uniqueNumeric[0];
+                                minorThreshold = uniqueNumeric[0];
+                            }
+                        }
+                        if (!Number.isFinite(minorThreshold)) { minorThreshold = failThreshold + 1; }
+
+                        // Inclusive thresholds so boundary values are counted as expected
+                        if (effectiveScore <= failThreshold) {
                             status = 'fail';
-                        } else if (numScore < minorThreshold) {
+                        } else if (effectiveScore <= minorThreshold) {
                             status = 'minor';
                         } else {
                             status = 'pass';
@@ -3153,8 +3213,13 @@ export default function QADashboardGenerator() {
                         status = 'unknown';
                         console.warn(`Non-numeric score found: "${scoreStr}" for expert ${expertId}`);
                     }
-                }else {
-                    // Discrete value system (existing logic)
+                } else if (isBinary) {
+                    const passBin = ['1', 'yes', 'true', 'y', 'strong pass', 'pass'];
+                    const failBin = ['0', 'no', 'false', 'n', 'fail', 'reject'];
+                    if (passBin.includes(scoreLower)) status = 'pass';
+                    else if (failBin.includes(scoreLower)) status = 'fail';
+                } else {
+                    // Discrete text system
                     const isMinor = config.minorValues.some(v => v.toLowerCase() === scoreLower);
                     const isPass = config.passValues.some(v => v.toLowerCase() === scoreLower);
                     const isFail = config.failValues.some(v => v.toLowerCase() === scoreLower);
@@ -3297,9 +3362,9 @@ export default function QADashboardGenerator() {
         };
     }, [processedData]);
 
-    const passLabel = config?.passValues?.[0] || 'Pass';
-    const minorLabel = config?.minorValues?.[0] || 'Weak Pass (counts as pass)';
-    const failLabel = config?.failValues?.[0] || 'Fail';
+    const passLabel = 'Strong Pass';
+    const minorLabel = 'Weak Pass';
+    const failLabel = 'Fail';
 
     // Expert performance
     const expertPerformance = useMemo(() => {
@@ -3863,3 +3928,5 @@ export default function QADashboardGenerator() {
         </div>
     );
 }
+
+
