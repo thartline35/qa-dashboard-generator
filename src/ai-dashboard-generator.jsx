@@ -1985,7 +1985,7 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
     const canProceed = () => {
         switch (step) {
             case 1: return config.projectType !== '';
-            case 2: return config.qualityType !== '';
+            case 2: return (config.scoreFormat || '') !== '';
             case 3: return config.expertIdColumn !== '' && config.scoreColumn !== '';
             case 4:
                 const qualityCfg = QUALITY_TYPES[config.qualityType];
