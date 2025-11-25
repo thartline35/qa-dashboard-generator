@@ -3520,6 +3520,7 @@ export default function QADashboardGenerator() {
                     <SetupWizard
                         columns={columns}
                         sampleData={rawData.slice(0, 100)}
+                        rawData={rawData}
                         onComplete={(c) => { setConfig(c); setShowWizard(false); }}
                         onCancel={() => {
                             setFile(null);
