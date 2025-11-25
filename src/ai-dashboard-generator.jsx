@@ -1004,14 +1004,14 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
 
     const buildSystemPrompt = () => {
         // Get sample of actual data structure
-        const sampleData = processedData && processedData.length > 0 
-          ? JSON.stringify(processedData[0].raw, null, 2) 
-          : 'No data available';
-          
-        const availableColumns = processedData && processedData.length > 0 
-          ? Object.keys(processedData[0].raw || {}) 
-          : [];
-      
+        const sampleData = processedData && processedData.length > 0
+            ? JSON.stringify(processedData[0].raw, null, 2)
+            : 'No data available';
+
+        const availableColumns = processedData && processedData.length > 0
+            ? Object.keys(processedData[0].raw || {})
+            : [];
+
         return `You are an AI assistant helping a user analyze their REAL QA data. You work ONLY with actual data that exists - you NEVER make up, alter, or fabricate values.
       
       **CRITICAL RULES:**
@@ -1091,7 +1091,7 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
       - "Calculate ROI" → If cost/revenue columns don't exist, explain they need to be in the data
       
       Your job: Help users extract maximum insights from their ACTUAL data through smart calculations, filters, groupings, and visualizations.`;
-      };
+    };
 
     const handleSend = async () => {
         if (!input.trim() || isProcessing) return;
@@ -1943,11 +1943,11 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
 
     const handleQualityTypeSelect = (type) => {
         const qualityConfig = QUALITY_TYPES[type];
-        
+
         // Use functional update to avoid stale closure issues
         setConfig(prev => {
             const updates = { ...prev, qualityType: type };
-            
+
             if (qualityConfig) {
                 if (qualityConfig.isNumeric) {
                     // Always set defaults for numeric types
@@ -1967,7 +1967,7 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
                     updates.numericMinorThreshold = null;
                 }
             }
-            
+
             return updates;
         });
     };
@@ -2052,125 +2052,71 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
                             <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                                 <Target className="h-8 w-8 text-white" />
                             </div>
-                            <h2 className="text-2xl font-bold text-white mb-2">How is quality determined?</h2>
-                            <p className="text-slate-400">Select the scoring system in your QA data</p>
+                            <h2 className="text-2xl font-bold text-white mb-2">What format is your score?</h2>
+                            <p className="text-slate-400">Choose one. This controls how Strong/Weak Pass vs Fail are classified.</p>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {Object.entries(QUALITY_TYPES).map(([key, type]) => (
-                                <button
-                                    key={key}
-                                    onClick={() => handleQualityTypeSelect(key)}
-                                    className={`p-5 rounded-xl border-2 transition-all text-left ${config.qualityType === key
-                                        ? 'border-emerald-500 bg-emerald-500/20'
-                                        : 'border-white/10 bg-white/5 hover:border-white/30'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-3 mb-2">
-                                        {config.qualityType === key ? (
-                                            <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                                        ) : (
-                                            <div className="w-5 h-5 rounded-full border-2 border-slate-500" />
-                                        )}
-                                        <div className="font-semibold text-white">{type.name}</div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-300">
+                            {[
+                                { key: 'numeric', label: 'Numeric (whole numbers)', desc: 'e.g., 1, 3, 5' },
+                                { key: 'percentage', label: 'Percentage/Decimal', desc: 'e.g., 0.76 or 76%' },
+                                { key: 'text', label: 'Text labels', desc: 'e.g., Good/Bad, Strong/Weak/Fail' },
+                                { key: 'binary', label: 'Binary', desc: 'e.g., Yes/No, True/False, 0/1' },
+                            ].map(opt => (
+                                <label key={opt.key} className="flex items-start gap-2 cursor-pointer p-3 rounded-lg border border-white/10 hover:border-emerald-400/60">
+                                    <input
+                                        type="radio"
+                                        name="scoreFormat"
+                                        value={opt.key}
+                                        checked={config.scoreFormat === opt.key}
+                                        onChange={() => updateConfig('scoreFormat', opt.key)}
+                                        className="mt-1 text-emerald-500 focus:ring-emerald-500"
+                                    />
+                                    <div>
+                                        <div className="font-semibold text-white">{opt.label}</div>
+                                        <div className="text-xs text-slate-400">{opt.desc}</div>
                                     </div>
-                                    <div className="text-sm text-slate-400 ml-8">{type.description}</div>
-                                </button>
+                                </label>
                             ))}
                         </div>
 
                         <div className="p-4 rounded-xl border border-white/10 bg-white/5">
                             <div className="flex items-center gap-2 mb-3">
-                                <Target className="h-4 w-4 text-indigo-400" />
-                                <div className="text-sm font-semibold text-white">Score Format</div>
+                                <Activity className="h-4 w-4 text-emerald-400" />
+                                <div className="text-sm font-semibold text-white">Metrics Needed</div>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-slate-300">
-                                {[
-                                    { key: 'numeric', label: 'Numeric (whole numbers)', desc: 'e.g., 1, 3, 5' },
-                                    { key: 'percentage', label: 'Percentage/Decimal', desc: 'e.g., 0.76 or 76%' },
-                                    { key: 'text', label: 'Text labels', desc: 'e.g., Good/Bad, Pass/Fail' },
-                                    { key: 'binary', label: 'Binary', desc: 'e.g., Yes/No, True/False, 0/1' },
-                                ].map(opt => (
-                                    <label key={opt.key} className="flex items-start gap-2 cursor-pointer p-2 rounded-lg hover:bg-white/5">
-                                        <input
-                                            type="radio"
-                                            name="scoreFormat"
-                                            value={opt.key}
-                                            checked={config.scoreFormat === opt.key}
-                                            onChange={() => updateConfig('scoreFormat', opt.key)}
-                                            className="mt-1 text-indigo-500 focus:ring-indigo-500"
-                                        />
-                                        <div>
-                                            <div className="font-semibold text-white">{opt.label}</div>
-                                            <div className="text-xs text-slate-400">{opt.desc}</div>
-                                        </div>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="p-4 rounded-xl border border-white/10 bg-white/5">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Target className="h-4 w-4 text-indigo-400" />
-                                    <div className="text-sm font-semibold text-white">Scoring Mode</div>
-                                </div>
-                                <div className="space-y-2">
-                                    {['auto', 'discrete_quality', 'numeric_score', 'consensus'].map(mode => (
-                                        <label key={mode} className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="scoringMode"
-                                                value={mode}
-                                                checked={config.scoringMode === mode}
-                                                onChange={() => updateConfig('scoringMode', mode)}
-                                                className="text-indigo-500 focus:ring-indigo-500"
-                                            />
-                                            <span className="capitalize">{mode.replace('_', ' ')}</span>
-                                        </label>
-                                    ))}
-                                    <p className="text-xs text-slate-500 mt-2">Auto will pick based on your columns; consensus expects multiple reviewer/decision columns for the same task.</p>
-                                </div>
-                            </div>
-
-                            <div className="p-4 rounded-xl border border-white/10 bg-white/5">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Activity className="h-4 w-4 text-emerald-400" />
-                                    <div className="text-sm font-semibold text-white">Metrics Needed</div>
-                                </div>
-                                <div className="space-y-2 text-sm text-slate-300">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={config.metricNeeds.approval}
-                                            onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, approval: e.target.checked })}
-                                        />
-                                        Approval / Pass-Fail
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={config.metricNeeds.quality}
-                                            onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, quality: e.target.checked })}
-                                        />
-                                        Quality Score
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={config.metricNeeds.consensus}
-                                            onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, consensus: e.target.checked })}
-                                        />
-                                        Consensus (multiple reviews per task)
-                                    </label>
-                                    <textarea
-                                        value={config.metricNeeds.custom || ''}
-                                        onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, custom: e.target.value })}
-                                        placeholder="Other: e.g., average grade per task, dual-score comparisons, payment-adjusted quality..."
-                                        className="w-full mt-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                                        rows={3}
+                            <div className="space-y-2 text-sm text-slate-300">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={config.metricNeeds.approval}
+                                        onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, approval: e.target.checked })}
                                     />
-                                </div>
+                                    Approval / Pass-Fail
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={config.metricNeeds.quality}
+                                        onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, quality: e.target.checked })}
+                                    />
+                                    Quality Score
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={config.metricNeeds.consensus}
+                                        onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, consensus: e.target.checked })}
+                                    />
+                                    Consensus (multiple reviews per task)
+                                </label>
+                                <textarea
+                                    value={config.metricNeeds.custom || ''}
+                                    onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, custom: e.target.value })}
+                                    placeholder="Other: e.g., average grade per task, dual-score comparisons, payment-adjusted quality..."
+                                    className="w-full mt-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                    rows={3}
+                                />
                             </div>
                         </div>
                     </div>
@@ -2380,7 +2326,7 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
                                                         const parsed = parseFloat(val);
                                                         updateConfig('numericFailThreshold', isNaN(parsed) ? qualityConfig.defaultFailThreshold : parsed);
                                                     }
-                                                }}                                                className="w-full px-4 py-3 bg-white/5 border border-rose-500/50 rounded-xl text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                                                }} className="w-full px-4 py-3 bg-white/5 border border-rose-500/50 rounded-xl text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-rose-500/50"
                                             />
                                             <div className="mt-2 text-xs text-rose-300/50">
                                                 Example: Score of {Math.floor((config.numericFailThreshold ?? qualityConfig.defaultFailThreshold) - 1)} = <span className="text-rose-400 font-semibold">FAIL</span>
@@ -2414,7 +2360,7 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
                                                         const parsed = parseFloat(val);
                                                         updateConfig('numericMinorThreshold', isNaN(parsed) ? qualityConfig.defaultMinorThreshold : parsed);
                                                     }
-                                                }}                                                className="w-full px-4 py-3 bg-white/5 border border-amber-500/50 rounded-xl text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                                                }} className="w-full px-4 py-3 bg-white/5 border border-amber-500/50 rounded-xl text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/50"
                                             />
                                             <div className="mt-2 text-xs text-amber-300/50">
                                                 Example: Score of {Math.floor((config.numericMinorThreshold ?? qualityConfig.defaultMinorThreshold) - 1)} = <span className="text-amber-400 font-semibold">MINOR (Weak Pass)</span>
@@ -3230,7 +3176,7 @@ export default function QADashboardGenerator() {
                 }
             }
 
-            
+
             let date = '';
             if (config.timestampColumn && row[config.timestampColumn]) {
                 const rawDate = row[config.timestampColumn];
@@ -3403,68 +3349,68 @@ export default function QADashboardGenerator() {
     const categoryBreakdown = useMemo(() => {
         if (!processedData) return [];
         const byCategory = {};
-        
+
         processedData.filter(r => r.category && !r.isExcluded).forEach(r => {
-          if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
-          
-          if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
-            byCategory[r.category].count++;
-            if (r.status === 'pass') byCategory[r.category].pass++;
-            if (r.status === 'minor') byCategory[r.category].minor++;
-            if (r.status === 'fail') byCategory[r.category].fail++;
-          }
-          if (r.qualityScore !== null) {
-            byCategory[r.category].qualityScores.push(r.qualityScore);
-          }
+            if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
+
+            if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
+                byCategory[r.category].count++;
+                if (r.status === 'pass') byCategory[r.category].pass++;
+                if (r.status === 'minor') byCategory[r.category].minor++;
+                if (r.status === 'fail') byCategory[r.category].fail++;
+            }
+            if (r.qualityScore !== null) {
+                byCategory[r.category].qualityScores.push(r.qualityScore);
+            }
         });
-      
+
         return Object.entries(byCategory).map(([cat, data]) => ({
-          Category: cat,
-          Count: data.count,
-          Pass: data.pass,
-          Minor: data.minor,
-          Fail: data.fail,
-          'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,
-          'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0,
-          'Quality %': data.qualityScores.length > 0
-            ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
-            : null
+            Category: cat,
+            Count: data.count,
+            Pass: data.pass,
+            Minor: data.minor,
+            Fail: data.fail,
+            'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,
+            'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0,
+            'Quality %': data.qualityScores.length > 0
+                ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
+                : null
         })).sort((a, b) => b.Count - a.Count);
-      }, [processedData]);
+    }, [processedData]);
 
     // Reviewer stats
     const reviewerStats = useMemo(() => {
         if (!processedData) return [];
         const byReviewer = {};
-        
+
         // Only count non-excluded records with valid status
         processedData.filter(r => r.reviewer && !r.isExcluded).forEach(r => {
-          if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviews: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
-          
-          if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
-            byReviewer[r.reviewer].reviews++;
-            if (r.status === 'pass') byReviewer[r.reviewer].pass++;
-            else if (r.status === 'minor') byReviewer[r.reviewer].minor++;
-            else if (r.status === 'fail') byReviewer[r.reviewer].fail++;
-          }
-          if (r.qualityScore !== null) {
-            byReviewer[r.reviewer].qualityScores.push(r.qualityScore);
-          }
+            if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviews: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
+
+            if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
+                byReviewer[r.reviewer].reviews++;
+                if (r.status === 'pass') byReviewer[r.reviewer].pass++;
+                else if (r.status === 'minor') byReviewer[r.reviewer].minor++;
+                else if (r.status === 'fail') byReviewer[r.reviewer].fail++;
+            }
+            if (r.qualityScore !== null) {
+                byReviewer[r.reviewer].qualityScores.push(r.qualityScore);
+            }
         });
-      
+
         return Object.entries(byReviewer).map(([reviewer, data]) => ({
-          Reviewer: reviewer,
-          'Total Reviews': data.reviews,
-          'Pass Given': data.pass,
-          'Minor Given': data.minor,
-          'Fail Given': data.fail,
-          'Approval %': data.reviews > 0 ? ((data.pass + data.minor) / data.reviews) * 100 : 0,
-          'Fail %': data.reviews > 0 ? (data.fail / data.reviews) * 100 : 0,
-          'Quality %': data.qualityScores.length > 0
-            ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
-            : null
+            Reviewer: reviewer,
+            'Total Reviews': data.reviews,
+            'Pass Given': data.pass,
+            'Minor Given': data.minor,
+            'Fail Given': data.fail,
+            'Approval %': data.reviews > 0 ? ((data.pass + data.minor) / data.reviews) * 100 : 0,
+            'Fail %': data.reviews > 0 ? (data.fail / data.reviews) * 100 : 0,
+            'Quality %': data.qualityScores.length > 0
+                ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
+                : null
         })).sort((a, b) => b['Total Reviews'] - a['Total Reviews']);
-      }, [processedData]);
+    }, [processedData]);
 
     // Chart data
     const statusDistribution = useMemo(() => {
@@ -3481,14 +3427,14 @@ export default function QADashboardGenerator() {
         if (!processedData) return [];
         const byDate = {};
         processedData.filter(r => r.date).forEach(r => {
-          if (!byDate[r.date]) byDate[r.date] = { date: r.date, total: 0, pass: 0, minor: 0, fail: 0 };
-          byDate[r.date].total++;
-          if (r.status === 'pass') byDate[r.date].pass++;
-          if (r.status === 'minor') byDate[r.date].minor++;  // ADD THIS LINE
-          if (r.status === 'fail') byDate[r.date].fail++;
+            if (!byDate[r.date]) byDate[r.date] = { date: r.date, total: 0, pass: 0, minor: 0, fail: 0 };
+            byDate[r.date].total++;
+            if (r.status === 'pass') byDate[r.date].pass++;
+            if (r.status === 'minor') byDate[r.date].minor++;  // ADD THIS LINE
+            if (r.status === 'fail') byDate[r.date].fail++;
         });
         return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
-      }, [processedData]);
+    }, [processedData]);
 
     const qualityTrend = useMemo(() => {
         if (!processedData) return [];
@@ -3715,61 +3661,61 @@ export default function QADashboardGenerator() {
                         </div>
 
                         {trendData.length > 0 && (
-  <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
-    <h3 className="text-lg font-semibold text-white mb-4">Submissions Over Time</h3>
-    <ResponsiveContainer width="100%" height={280}>
-      {config.chartPreferences.trendChart === 'bar' ? (
-        <BarChart data={trendData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-          <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
-            tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth()+1}/${dt.getDate()}`; }} />
-          <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} 
-            itemStyle={{ color: '#e2e8f0' }} />
-          <Bar dataKey="total" fill="#6366F1" radius={[4, 4, 0, 0]} name="Total" />
-          <Bar dataKey="pass" fill="#10b981" radius={[4, 4, 0, 0]} name="Pass" />
-          <Bar dataKey="minor" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Minor" />
-          <Bar dataKey="fail" fill="#ef4444" radius={[4, 4, 0, 0]} name="Fail" />
-          <Legend />
-        </BarChart>
-      ) : config.chartPreferences.trendChart === 'line' ? (
-        <LineChart data={trendData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-          <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
-            tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth()+1}/${dt.getDate()}`; }} />
-          <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} 
-            itemStyle={{ color: '#e2e8f0' }} />
-          <Line type="monotone" dataKey="total" stroke="#6366F1" strokeWidth={2} name="Total" />
-          <Line type="monotone" dataKey="pass" stroke="#10b981" strokeWidth={2} name="Pass" />
-          <Line type="monotone" dataKey="minor" stroke="#f59e0b" strokeWidth={2} name="Minor" />
-          <Line type="monotone" dataKey="fail" stroke="#ef4444" strokeWidth={2} name="Fail" />
-          <Legend />
-        </LineChart>
-      ) : (
-        <AreaChart data={trendData}>
-          <defs>
-            <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="#6366F1" stopOpacity={0}/>
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-          <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
-            tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth()+1}/${dt.getDate()}`; }} />
-          <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} 
-            itemStyle={{ color: '#e2e8f0' }} />
-          <Area type="monotone" dataKey="total" stroke="#6366F1" fillOpacity={1} fill="url(#colorTotal)" name="Total" />
-          <Line type="monotone" dataKey="pass" stroke="#10b981" strokeWidth={2} dot={false} name="Pass" />
-          <Line type="monotone" dataKey="minor" stroke="#f59e0b" strokeWidth={2} dot={false} name="Minor" />
-          <Line type="monotone" dataKey="fail" stroke="#ef4444" strokeWidth={2} dot={false} name="Fail" />
-          <Legend />
-        </AreaChart>
-      )}
-    </ResponsiveContainer>
-  </div>
-)}
+                            <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+                                <h3 className="text-lg font-semibold text-white mb-4">Submissions Over Time</h3>
+                                <ResponsiveContainer width="100%" height={280}>
+                                    {config.chartPreferences.trendChart === 'bar' ? (
+                                        <BarChart data={trendData}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                                            <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
+                                                tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; }} />
+                                            <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+                                            <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                                itemStyle={{ color: '#e2e8f0' }} />
+                                            <Bar dataKey="total" fill="#6366F1" radius={[4, 4, 0, 0]} name="Total" />
+                                            <Bar dataKey="pass" fill="#10b981" radius={[4, 4, 0, 0]} name="Pass" />
+                                            <Bar dataKey="minor" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Minor" />
+                                            <Bar dataKey="fail" fill="#ef4444" radius={[4, 4, 0, 0]} name="Fail" />
+                                            <Legend />
+                                        </BarChart>
+                                    ) : config.chartPreferences.trendChart === 'line' ? (
+                                        <LineChart data={trendData}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                                            <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
+                                                tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; }} />
+                                            <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+                                            <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                                itemStyle={{ color: '#e2e8f0' }} />
+                                            <Line type="monotone" dataKey="total" stroke="#6366F1" strokeWidth={2} name="Total" />
+                                            <Line type="monotone" dataKey="pass" stroke="#10b981" strokeWidth={2} name="Pass" />
+                                            <Line type="monotone" dataKey="minor" stroke="#f59e0b" strokeWidth={2} name="Minor" />
+                                            <Line type="monotone" dataKey="fail" stroke="#ef4444" strokeWidth={2} name="Fail" />
+                                            <Legend />
+                                        </LineChart>
+                                    ) : (
+                                        <AreaChart data={trendData}>
+                                            <defs>
+                                                <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
+                                                    <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                                            <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
+                                                tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; }} />
+                                            <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+                                            <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                                itemStyle={{ color: '#e2e8f0' }} />
+                                            <Area type="monotone" dataKey="total" stroke="#6366F1" fillOpacity={1} fill="url(#colorTotal)" name="Total" />
+                                            <Line type="monotone" dataKey="pass" stroke="#10b981" strokeWidth={2} dot={false} name="Pass" />
+                                            <Line type="monotone" dataKey="minor" stroke="#f59e0b" strokeWidth={2} dot={false} name="Minor" />
+                                            <Line type="monotone" dataKey="fail" stroke="#ef4444" strokeWidth={2} dot={false} name="Fail" />
+                                            <Legend />
+                                        </AreaChart>
+                                    )}
+                                </ResponsiveContainer>
+                            </div>
+                        )}
                     </div>
 
                     {qualityTrend.length > 0 && (
@@ -3779,7 +3725,7 @@ export default function QADashboardGenerator() {
                                 <LineChart data={qualityTrend}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                                     <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }}
-                                        tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth()+1}/${dt.getDate()}`; }} />
+                                        tickFormatter={(d) => { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; }} />
                                     <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
                                     <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
                                         itemStyle={{ color: '#e2e8f0' }} />
@@ -3811,20 +3757,17 @@ export default function QADashboardGenerator() {
                     {/* Tables */}
                     {config.showTables.expert && expertPerformance.length > 0 && (
                         <DataTable data={expertPerformance} title="Expert Performance"
-                            columns={['Expert', 'Total', passLabel, minorLabel, 'Fail', 'Approval %', `${minorLabel} %`, 'Defect %', ...(metrics.avgQuality !== null ? ['Quality %'] : [])]} />
+                            columns={['Expert', 'Total', 'Strong Pass', 'Weak Pass', 'Fail', 'Approval %', 'Weak Pass %', 'Defect %', ...
+                                (metrics.avgQuality !== null ? ['Quality %'] : [])]} />
                     )}
                     {config.showTables.category && categoryBreakdown.length > 0 && (
                         <DataTable data={categoryBreakdown} title="Category Breakdown"
-                            columns={['Category', 'Count', passLabel, minorLabel, 'Fail', 'Approval %', 'Defect %', 'Quality %']} />
+                            columns={['Category', 'Count', 'Strong Pass', 'Weak Pass', 'Fail', 'Approval %', 'Defect %', 'Quality %']} />
                     )}
                     {config.showTables.reviewer && reviewerStats.length > 0 && (
                         <DataTable data={reviewerStats} title="Reviewer Statistics"
-                            columns={['Reviewer', 'Total Reviews', `${passLabel} Given`, `${minorLabel} Given`, 'Fail Given', 'Approval %', 'Fail %', 'Quality %']} />
-                    )}
-                    {config.showTables.detailed && processedData.length > 0 && (
-                        <DataTable data={processedData.slice(0, 500).map(r => ({
-                            Date: r.date || '-', Expert: r.expertId, Status: r.status, Score: r.score, Category: r.category || '-', Reviewer: r.reviewer || '-'
-                        }))} title="Detailed Records" columns={['Date', 'Expert', 'Status', 'Score', 'Category', 'Reviewer']} />
+                            columns={['Reviewer', 'Total Reviews', 'Strong Pass Given', 'Weak Pass Given', 'Fail Given', 'Approval %', 'Fail %',
+                                'Quality %']} />
                     )}
                 </main>
                 {/* Chat Panel */}
