@@ -3148,7 +3148,7 @@ export default function QADashboardGenerator() {
                                 minorThreshold = uniqueNumeric[1];
                             } else if (uniqueNumeric.length === 1) {
                                 failThreshold = uniqueNumeric[0];
-                                minorThreshold = uniqueNumeric[0];
+                                minorThreshold = uniqueNumeric[0] + 1; // avoid collapsing all scores into fail
                             }
                         }
                         if (!Number.isFinite(minorThreshold)) { minorThreshold = failThreshold + 1; }
