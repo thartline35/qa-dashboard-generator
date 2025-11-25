@@ -3246,11 +3246,12 @@ export default function QADashboardGenerator() {
                 ).length;
                 qualityScore = (goodCount / config.qualityDimensionColumns.length) * 100;
             } else if (isNumeric && !isNaN(numScore)) {
-                // Map numeric scores to a 0-100 quality scale based on configured min/max
-                const minVal = qualityConfig?.minValue ?? 0;
-                const maxVal = qualityConfig?.maxValue ?? 100;
+                // Map numeric scores to a 0-100 quality scale based on observed range if no config range
+                const minVal = qualityConfig?.minValue ?? (uniqueNumeric[0] ?? 0);
+                const maxVal = qualityConfig?.maxValue ?? (uniqueNumeric[uniqueNumeric.length - 1] ?? (minVal + 1));
+                const denom = (maxVal - minVal) === 0 ? 1 : (maxVal - minVal);
                 const clamped = Math.min(Math.max(numScore, minVal), maxVal);
-                qualityScore = ((clamped - minVal) / (maxVal - minVal)) * 100;
+                qualityScore = ((clamped - minVal) / denom) * 100;
             }
 
             return {
@@ -3338,14 +3339,12 @@ export default function QADashboardGenerator() {
             return {
                 Expert: expert,
                 Total: data.total,
-                Pass: data.pass,
-                Minor: data.minor,
+                'Strong Pass': data.pass,
+                'Weak Pass': data.minor,
                 Fail: data.fail,
-                // FIX: Approval should include both pass and minor
                 'Approval %': validTotal > 0 ? ((data.pass + data.minor) / validTotal) * 100 : 0,
+                'Weak Pass %': validTotal > 0 ? (data.minor / validTotal) * 100 : 0,
                 'Defect %': validTotal > 0 ? (data.fail / validTotal) * 100 : 0,
-                // ADD: Show minor percentage separately
-                'Minor %': validTotal > 0 ? (data.minor / validTotal) * 100 : 0,
                 'Quality %': data.qualityScores.length > 0
                     ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length : null
             };
@@ -3358,29 +3357,29 @@ export default function QADashboardGenerator() {
         const byCategory = {};
 
         processedData.filter(r => r.category && !r.isExcluded).forEach(r => {
-            if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
-
-            if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
-                byCategory[r.category].count++;
-                if (r.status === 'pass') byCategory[r.category].pass++;
-                if (r.status === 'minor') byCategory[r.category].minor++;
-                if (r.status === 'fail') byCategory[r.category].fail++;
-            }
-            if (r.qualityScore !== null) {
-                byCategory[r.category].qualityScores.push(r.qualityScore);
-            }
+          if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
+          
+          if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
+            byCategory[r.category].count++;
+            if (r.status === 'pass') byCategory[r.category].pass++;
+            if (r.status === 'minor') byCategory[r.category].minor++;
+            if (r.status === 'fail') byCategory[r.category].fail++;
+          }
+          if (r.qualityScore !== null) {
+            byCategory[r.category].qualityScores.push(r.qualityScore);
+          }
         });
-
+      
         return Object.entries(byCategory).map(([cat, data]) => ({
-            Category: cat,
-            Count: data.count,
-            Pass: data.pass,
-            Minor: data.minor,
-            Fail: data.fail,
-            'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,
-            'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0,
-            'Quality %': data.qualityScores.length > 0
-                ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
+          Category: cat,
+          Count: data.count,
+          'Strong Pass': data.pass,
+          'Weak Pass': data.minor,
+          Fail: data.fail,
+          'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,
+          'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0,
+          'Quality %': data.qualityScores.length > 0
+            ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
                 : null
         })).sort((a, b) => b.Count - a.Count);
     }, [processedData]);
@@ -3392,10 +3391,10 @@ export default function QADashboardGenerator() {
 
         // Only count non-excluded records with valid status
         processedData.filter(r => r.reviewer && !r.isExcluded).forEach(r => {
-            if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviews: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
-
-            if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
-                byReviewer[r.reviewer].reviews++;
+          if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviews: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
+          
+          if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
+            byReviewer[r.reviewer].reviews++;
                 if (r.status === 'pass') byReviewer[r.reviewer].pass++;
                 else if (r.status === 'minor') byReviewer[r.reviewer].minor++;
                 else if (r.status === 'fail') byReviewer[r.reviewer].fail++;
@@ -3404,17 +3403,17 @@ export default function QADashboardGenerator() {
                 byReviewer[r.reviewer].qualityScores.push(r.qualityScore);
             }
         });
-
+      
         return Object.entries(byReviewer).map(([reviewer, data]) => ({
-            Reviewer: reviewer,
-            'Total Reviews': data.reviews,
-            'Pass Given': data.pass,
-            'Minor Given': data.minor,
-            'Fail Given': data.fail,
-            'Approval %': data.reviews > 0 ? ((data.pass + data.minor) / data.reviews) * 100 : 0,
-            'Fail %': data.reviews > 0 ? (data.fail / data.reviews) * 100 : 0,
-            'Quality %': data.qualityScores.length > 0
-                ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
+          Reviewer: reviewer,
+          'Total Reviews': data.reviews,
+          'Strong Pass Given': data.pass,
+          'Weak Pass Given': data.minor,
+          'Fail Given': data.fail,
+          'Approval %': data.reviews > 0 ? ((data.pass + data.minor) / data.reviews) * 100 : 0,
+          'Fail %': data.reviews > 0 ? (data.fail / data.reviews) * 100 : 0,
+          'Quality %': data.qualityScores.length > 0
+            ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
                 : null
         })).sort((a, b) => b['Total Reviews'] - a['Total Reviews']);
     }, [processedData]);
