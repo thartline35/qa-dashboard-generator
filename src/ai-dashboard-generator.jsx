@@ -1859,7 +1859,7 @@ function DataParsingSettings({ dataSources, onComplete, onCancel }) {
 }
 
 // Setup Wizard Component
-function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
+function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }) {
     const [step, setStep] = useState(1);
     const totalSteps = 7;
 
@@ -1914,16 +1914,17 @@ function SetupWizard({ columns, sampleData, onComplete, onCancel }) {
     }, [columns]);
 
     const getColumnValues = useCallback((columnName) => {
-        if (!columnName || !sampleData.length) return [];
+        const source = rawData.length ? rawData : sampleData;
+        if (!columnName || !source.length) return [];
         const values = new Set();
-        sampleData.forEach(row => {
+        source.forEach(row => {
             const val = row[columnName];
             if (val !== null && val !== undefined && val !== '') {
                 values.add(String(val).trim());
             }
         });
         return Array.from(values).sort();
-    }, [sampleData]);
+    }, [sampleData, rawData]);
 
     const updateConfig = (field, value) => {
         setConfig(prev => ({ ...prev, [field]: value }));
@@ -3095,12 +3096,19 @@ export default function QADashboardGenerator() {
         const scoreFormat = config.scoreFormat || 'numeric';
 
         // Collect numeric samples up-front for auto-threshold inference
+        const parseNum = (raw) => {
+            if (raw === null || raw === undefined) return NaN;
+            const str = String(raw).trim();
+            if (!str) return NaN;
+            const match = str.match(/[-+]?\d*\.?\d+/);
+            if (match) return parseFloat(match[0]);
+            const asNum = Number(str);
+            return Number.isFinite(asNum) ? asNum : NaN;
+        };
+
         const numericSamples = [];
         rawData.forEach(row => {
-            const raw = row[config.scoreColumn];
-            const str = raw !== null && raw !== undefined ? String(raw).trim() : '';
-            const part = str.replace(/[^0-9.+-]/g, '');
-            const n = part !== '' ? parseFloat(part) : NaN;
+            const n = parseNum(row[config.scoreColumn]);
             if (!isNaN(n)) numericSamples.push(n);
         });
         const uniqueNumeric = Array.from(new Set(numericSamples)).sort((a, b) => a - b);
@@ -3110,9 +3118,8 @@ export default function QADashboardGenerator() {
             const scoreRaw = row[config.scoreColumn];
             const scoreStr = scoreRaw !== null && scoreRaw !== undefined ? String(scoreRaw).trim() : '';
             const scoreLower = scoreStr.toLowerCase();
-            const numericPart = scoreStr.replace(/[^0-9.+-]/g, '');
-            const numScore = numericPart !== '' ? parseFloat(numericPart) : NaN;
-            const scoreLooksNumeric = scoreStr !== '' && !isNaN(numScore);
+            const numScore = parseNum(scoreRaw);
+            const scoreLooksNumeric = scoreStr !== '' && Number.isFinite(numScore);
             const forceNumeric = config.scoringMode === 'numeric_score' || scoreFormat === 'numeric' || scoreFormat === 'percentage';
             const autoNumeric = !qualityConfig && scoreLooksNumeric && config.passValues.length === 0 && config.failValues.length === 0 && config.minorValues.length === 0;
             const isNumeric = isNumericConfig || forceNumeric || autoNumeric;
@@ -3757,8 +3764,7 @@ export default function QADashboardGenerator() {
                     {/* Tables */}
                     {config.showTables.expert && expertPerformance.length > 0 && (
                         <DataTable data={expertPerformance} title="Expert Performance"
-                            columns={['Expert', 'Total', 'Strong Pass', 'Weak Pass', 'Fail', 'Approval %', 'Weak Pass %', 'Defect %', ...
-                                (metrics.avgQuality !== null ? ['Quality %'] : [])]} />
+                            columns={['Expert', 'Total', 'Strong Pass', 'Weak Pass', 'Fail', 'Approval %', 'Weak Pass %', 'Defect %', ...(metrics.avgQuality !== null ? ['Quality %'] : [])]} />
                     )}
                     {config.showTables.category && categoryBreakdown.length > 0 && (
                         <DataTable data={categoryBreakdown} title="Category Breakdown"
