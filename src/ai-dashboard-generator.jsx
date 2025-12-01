@@ -731,27 +731,140 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
 // ========================================================
 // CONSENSUS CALCULATION LOGIC
 // ========================================================
-// Calculate consensus answer for each question in each task
-const calculateConsensusAnswer = (values) => {
-    // Only filter out truly empty values - null, undefined, empty strings
-    // Keep 'na', 'n/a', 'none' etc. as they may be valid answer choices
-    const filtered = values.filter(v => {
-        if (v === null || v === undefined) return false;
-        const str = String(v).trim();
-        return str !== '';
+const calculateConsensusMetrics = (filteredData, config) => {
+    if (!config?.metricNeeds?.consensus || !config.taskIdColumn || !filteredData || filteredData.length === 0) {
+        return null;
+    }
+
+    const consensusColumns = config.consensusColumns || [];
+    if (consensusColumns.length === 0) return null;
+
+    // Group by task
+    const tasks = {};
+    const experts = {};
+
+    filteredData.forEach(r => {
+        const taskId = r.taskId;
+        const expertId = r.expertId;
+
+        if (!taskId) return;
+
+        if (!tasks[taskId]) tasks[taskId] = { attempts: 0, answers: {} };
+        tasks[taskId].attempts++;
+
+        if (!experts[expertId]) experts[expertId] = { attempts: 0, answers: {} };
+        experts[expertId].attempts++;
+
+        consensusColumns.forEach(q => {
+            const val = r.raw[q];
+            tasks[taskId].answers[q] = tasks[taskId].answers[q] || [];
+            tasks[taskId].answers[q].push(val);
+
+            experts[expertId].answers[q] = experts[expertId].answers[q] || [];
+            experts[expertId].answers[q].push({ taskId, answer: val });
+        });
     });
-    if (filtered.length === 0) return { answer: null, rate: 0 };
 
-    const counts = {};
-    filtered.forEach(v => {
-        const key = String(v).toLowerCase().trim();
-        counts[key] = (counts[key] || 0) + 1;
+    // Calculate consensus answer for each question in each task
+    const calculateConsensusAnswer = (values) => {
+        // Only filter out truly empty values - null, undefined, empty strings
+        // Keep 'na', 'n/a', 'none' etc. as they may be valid answer choices
+        const filtered = values.filter(v => {
+            if (v === null || v === undefined) return false;
+            const str = String(v).trim();
+            return str !== '';
+        });
+        if (filtered.length === 0) return { answer: null, rate: 0 };
+
+        const counts = {};
+        filtered.forEach(v => {
+            const key = String(v).toLowerCase().trim();
+            counts[key] = (counts[key] || 0) + 1;
+        });
+
+        const maxCount = Math.max(...Object.values(counts));
+        const consensusAnswer = Object.keys(counts).find(k => counts[k] === maxCount);
+
+        return { answer: consensusAnswer, rate: maxCount / filtered.length };
+    };
+
+    // Task consensus
+    const taskConsensus = Object.entries(tasks).map(([taskId, info]) => {
+        const row = { task_id: taskId, attempts: info.attempts };
+        let rates = [];
+        
+        consensusColumns.forEach(q => {
+            const { rate } = calculateConsensusAnswer(info.answers[q] || []);
+            row[q + '_rate'] = rate;
+            if (!isNaN(rate)) rates.push(rate);
+        });
+        
+        row.overall_consensus = rates.length ? rates.reduce((a, b) => a + b, 0) / rates.length : 0;
+        return row;
     });
 
-    const maxCount = Math.max(...Object.values(counts));
-    const consensusAnswer = Object.keys(counts).find(k => counts[k] === maxCount);
+    // Build consensus cache for expert scoring
+    const consensusCache = {};
+    Object.keys(tasks).forEach(taskId => {
+        consensusCache[taskId] = {};
+        consensusColumns.forEach(q => {
+            consensusCache[taskId][q] = calculateConsensusAnswer(tasks[taskId].answers[q] || []).answer;
+        });
+    });
 
-    return { answer: consensusAnswer, rate: maxCount / filtered.length };
+    // Expert consensus scores - how often does each expert agree with consensus?
+    const expertConsensus = Object.entries(experts).map(([expertId, info]) => {
+        let totalMatches = 0, totalAnswers = 0;
+
+        consensusColumns.forEach(q => {
+            const expertAnswers = info.answers[q] || [];
+            expertAnswers.forEach(({ taskId, answer }) => {
+                const consensusAnswer = consensusCache[taskId]?.[q];
+                if (consensusAnswer && answer) {
+                    if (String(answer).toLowerCase().trim() === consensusAnswer) {
+                        totalMatches++;
+                    }
+                    totalAnswers++;
+                }
+            });
+        });
+
+        return {
+            expert_id: expertId,
+            attempts: info.attempts,
+            Consensus_Score: totalAnswers > 0 ? totalMatches / totalAnswers : 0
+        };
+    });
+
+    // Question stats - average consensus per question across all tasks
+    const questionStats = consensusColumns.map(q => {
+        const values = taskConsensus.map(t => t[q + '_rate']).filter(v => v != null);
+        const avgConsensus = values.length ? values.reduce((a, v) => a + v, 0) / values.length : 0;
+        return { 
+            question: q, 
+            consensus: avgConsensus, 
+            consensus_disagreement_rate: 1 - avgConsensus 
+        };
+    });
+
+    // KPIs
+    const uniqueTasks = Object.keys(tasks).length;
+    const uniqueExperts = Object.keys(experts).length;
+    const totalAttempts = filteredData.length;
+    const avgAttemptsPerTask = uniqueTasks ? totalAttempts / uniqueTasks : 0;
+    const projectConsensus = uniqueTasks ? taskConsensus.reduce((a, t) => a + t.overall_consensus, 0) / uniqueTasks : 0;
+
+    return {
+        taskConsensus,
+        expertConsensus,
+        questionStats,
+        uniqueTasks,
+        uniqueExperts,
+        totalAttempts,
+        avgAttemptsPerTask,
+        projectConsensus,
+        consensusDisagreementRate: 1 - projectConsensus
+    };
 };
 
 // Metric card component
