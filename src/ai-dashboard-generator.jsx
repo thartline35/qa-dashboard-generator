@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
     BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -10,7 +10,8 @@ import {
     Info, BarChart3, Table2, Users, UserCheck, FolderOpen, Calendar, Zap,
     Filter, DollarSign, Palette, ArrowRight, ArrowLeft, Download,
     HelpCircle, Database, Activity, FileText, Clock, Target, Award,
-    Video, Camera, Stethoscope, Code, Scale, Globe, FileEdit,
+    Video, RefreshCw, Camera, 
+    Stethoscope, Code, Scale, Globe, FileEdit,
     MessageSquare, Send, Sparkles, Home, Menu, ExternalLink
 } from 'lucide-react';
 import Papa from 'papaparse';
@@ -335,8 +336,533 @@ function LandingPage({ onGetStarted }) {
     );
 }
 
+// ========================================================
+// NEW COMPONENT: Active Filters Bar
+// Shows currently active filters with ability to clear them
+// ========================================================
+function ActiveFiltersBar({ filters, onClearFilter, onClearAll, dateRange }) {
+    const hasFilters = filters.expert || filters.category || filters.reviewer || 
+                       filters.status || filters.taskId || filters.dateRange.start || filters.dateRange.end;
+    
+    if (!hasFilters) return null;
+
+    return (
+        <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-4 mb-6">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-indigo-400" />
+                    <span className="text-sm font-medium text-indigo-300">Active Filters:</span>
+                </div>
+                <button
+                    onClick={onClearAll}
+                    className="flex items-center gap-1 px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-xs text-slate-300 transition-colors"
+                >
+                    <RefreshCw className="h-3 w-3" />
+                    Clear All
+                </button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-3">
+                {filters.expert && (
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-cyan-500/20 border border-cyan-500/40 rounded-lg text-sm text-cyan-300">
+                        Expert: {filters.expert}
+                        <button onClick={() => onClearFilter('expert')} className="hover:text-white">
+                            <X className="h-3 w-3" />
+                        </button>
+                    </span>
+                )}
+                {filters.category && (
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-500/20 border border-purple-500/40 rounded-lg text-sm text-purple-300">
+                        Category: {filters.category}
+                        <button onClick={() => onClearFilter('category')} className="hover:text-white">
+                            <X className="h-3 w-3" />
+                        </button>
+                    </span>
+                )}
+                {filters.reviewer && (
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500/20 border border-amber-500/40 rounded-lg text-sm text-amber-300">
+                        Reviewer: {filters.reviewer}
+                        <button onClick={() => onClearFilter('reviewer')} className="hover:text-white">
+                            <X className="h-3 w-3" />
+                        </button>
+                    </span>
+                )}
+                {filters.status && (
+                    <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm border ${
+                        filters.status === 'pass' ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300' :
+                        filters.status === 'minor' ? 'bg-amber-500/20 border-amber-500/40 text-amber-300' :
+                        'bg-rose-500/20 border-rose-500/40 text-rose-300'
+                    }`}>
+                        Status: {filters.status === 'pass' ? 'Strong Pass' : filters.status === 'minor' ? 'Weak Pass' : 'Fail'}
+                        <button onClick={() => onClearFilter('status')} className="hover:text-white">
+                            <X className="h-3 w-3" />
+                        </button>
+                    </span>
+                )}
+                {filters.taskId && (
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-teal-500/20 border border-teal-500/40 rounded-lg text-sm text-teal-300">
+                        Task: {filters.taskId.length > 20 ? filters.taskId.substring(0, 17) + '...' : filters.taskId}
+                        <button onClick={() => onClearFilter('taskId')} className="hover:text-white">
+                            <X className="h-3 w-3" />
+                        </button>
+                    </span>
+                )}
+                {(filters.dateRange.start || filters.dateRange.end) && (
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 border border-blue-500/40 rounded-lg text-sm text-blue-300">
+                        Date: {filters.dateRange.start || dateRange?.min || 'Start'} to {filters.dateRange.end || dateRange?.max || 'End'}
+                        <button onClick={() => onClearFilter('dateRange')} className="hover:text-white">
+                            <X className="h-3 w-3" />
+                        </button>
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ========================================================
+// NEW COMPONENT: Date Filter Panel
+// Provides date range selection with quick presets
+// ========================================================
+function DateFilterPanel({ dateRange, selectedRange, onRangeChange }) {
+    const [localStart, setLocalStart] = useState(selectedRange.start || '');
+    const [localEnd, setLocalEnd] = useState(selectedRange.end || '');
+
+    // Sync local state when selectedRange changes externally (e.g., Clear All)
+    useEffect(() => {
+        setLocalStart(selectedRange?.start || '');
+        setLocalEnd(selectedRange?.end || '');
+    }, [selectedRange?.start, selectedRange?.end]);
+
+    const applyFilter = () => {
+        onRangeChange({ start: localStart || null, end: localEnd || null });
+    };
+
+    const clearFilter = () => {
+        setLocalStart('');
+        setLocalEnd('');
+        onRangeChange({ start: null, end: null });
+    };
+
+    const quickFilters = [
+        { label: 'Last 7 days', days: 7 },
+        { label: 'Last 30 days', days: 30 },
+        { label: 'Last 90 days', days: 90 },
+        { label: 'This month', type: 'month' },
+        { label: 'Last month', type: 'lastMonth' },
+    ];
+
+    const applyQuickFilter = (filter) => {
+        const today = new Date();
+        let start, end;
+        
+        if (filter.days) {
+            end = today.toISOString().split('T')[0];
+            start = new Date(today.getTime() - filter.days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        } else if (filter.type === 'month') {
+            start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+            end = today.toISOString().split('T')[0];
+        } else if (filter.type === 'lastMonth') {
+            start = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split('T')[0];
+            end = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0];
+        }
+        
+        setLocalStart(start);
+        setLocalEnd(end);
+        onRangeChange({ start, end });
+    };
+
+    if (!dateRange.min || !dateRange.max) return null;
+
+    return (
+        <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-4 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+                <Calendar className="h-5 w-5 text-indigo-400" />
+                <h3 className="font-semibold text-white">Date Filter</h3>
+                <span className="text-xs text-slate-500 ml-2">
+                    Data range: {dateRange.min} to {dateRange.max}
+                </span>
+            </div>
+            
+            {/* Quick filters */}
+            <div className="flex flex-wrap gap-2 mb-4">
+                {quickFilters.map((filter, idx) => (
+                    <button
+                        key={idx}
+                        onClick={() => applyQuickFilter(filter)}
+                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-slate-300 transition-colors"
+                    >
+                        {filter.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* Custom date range */}
+            <div className="flex flex-wrap items-end gap-4">
+                <div className="flex-1 min-w-[150px]">
+                    <label className="block text-xs text-slate-400 mb-1">Start Date</label>
+                    <input
+                        type="date"
+                        value={localStart}
+                        min={dateRange.min}
+                        max={dateRange.max}
+                        onChange={(e) => setLocalStart(e.target.value)}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                    />
+                </div>
+                <div className="flex-1 min-w-[150px]">
+                    <label className="block text-xs text-slate-400 mb-1">End Date</label>
+                    <input
+                        type="date"
+                        value={localEnd}
+                        min={dateRange.min}
+                        max={dateRange.max}
+                        onChange={(e) => setLocalEnd(e.target.value)}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                    />
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={applyFilter}
+                        className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 rounded-lg text-sm text-white transition-colors"
+                    >
+                        Apply
+                    </button>
+                    <button
+                        onClick={clearFilter}
+                        className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm text-slate-300 transition-colors"
+                    >
+                        Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ========================================================
+// NEW COMPONENT: Consensus Metrics Panel
+// Displays consensus analytics when enabled
+// ========================================================
+function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, activeFilters }) {
+    if (!consensusMetrics) return null;
+    
+    const { taskConsensus, expertConsensus, questionStats, projectConsensus, consensusDisagreementRate, uniqueTasks, avgAttemptsPerTask } = consensusMetrics;
+
+    // Prepare chart data for question stats
+    const questionChartData = questionStats.map(q => ({
+        name: q.question.length > 20 ? q.question.substring(0, 17) + '...' : q.question,
+        fullName: q.question,
+        consensus: parseFloat((q.consensus * 100).toFixed(1)),
+        disagreement: parseFloat((q.consensus_disagreement_rate * 100).toFixed(1))
+    }));
+
+    // Sort expert consensus by score descending
+    const sortedExpertConsensus = [...expertConsensus]
+        .sort((a, b) => b.Consensus_Score - a.Consensus_Score)
+        .slice(0, 50);
+
+    // Sort task consensus by overall_consensus ascending (show worst first)
+    const sortedTaskConsensus = [...taskConsensus]
+        .sort((a, b) => a.overall_consensus - b.overall_consensus)
+        .slice(0, 100);
+
+    return (
+        <div className="space-y-6">
+            {/* Consensus KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl p-5 text-white shadow-xl">
+                    <div className="text-3xl font-bold mb-1">{(projectConsensus * 100).toFixed(1)}%</div>
+                    <div className="text-sm opacity-80">Project Consensus</div>
+                </div>
+                <div className="bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl p-5 text-white shadow-xl">
+                    <div className="text-3xl font-bold mb-1">{(consensusDisagreementRate * 100).toFixed(1)}%</div>
+                    <div className="text-sm opacity-80">Disagreement Rate</div>
+                </div>
+                <div className="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-5 text-white shadow-xl">
+                    <div className="text-3xl font-bold mb-1">{uniqueTasks.toLocaleString()}</div>
+                    <div className="text-sm opacity-80">Unique Tasks</div>
+                </div>
+                <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-5 text-white shadow-xl">
+                    <div className="text-3xl font-bold mb-1">{avgAttemptsPerTask.toFixed(1)}</div>
+                    <div className="text-sm opacity-80">Avg Attempts/Task</div>
+                </div>
+            </div>
+
+            {/* Question Consensus Chart */}
+            {questionChartData.length > 0 && (
+                <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4">Consensus by Question/Dimension</h3>
+                    <ResponsiveContainer width="100%" height={Math.max(200, questionChartData.length * 40)}>
+                        <BarChart data={questionChartData} layout="vertical">
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                            <XAxis type="number" domain={[0, 100]} stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+                            <YAxis 
+                                type="category" 
+                                dataKey="name" 
+                                stroke="#64748b" 
+                                tick={{ fill: '#94a3b8', fontSize: 11 }} 
+                                width={150}
+                            />
+                            <Tooltip 
+                                contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                formatter={(value) => [`${value}%`, 'Consensus']}
+                                labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+                            />
+                            <Bar dataKey="consensus" fill="#10b981" radius={[0, 4, 4, 0]} name="Consensus %" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            )}
+
+            {/* Expert Consensus Table */}
+            {sortedExpertConsensus.length > 0 && (
+                <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-white">Expert Consensus Accuracy</h3>
+                        <span className="text-xs text-slate-500">Click to filter by expert</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b border-white/10">
+                                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Expert</th>
+                                    <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Attempts</th>
+                                    <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Consensus Score</th>
+                                    <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Score Bar</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sortedExpertConsensus.map((row, idx) => {
+                                    const isActive = activeFilters?.expert === row.expert_id;
+                                    const score = row.Consensus_Score * 100;
+                                    return (
+                                        <tr 
+                                            key={idx}
+                                            onClick={() => onExpertClick && onExpertClick(row.expert_id)}
+                                            className={`border-b border-white/5 transition-colors cursor-pointer ${
+                                                isActive ? 'bg-indigo-500/30' : 'hover:bg-indigo-500/20'
+                                            }`}
+                                        >
+                                            <td className="py-3 px-4 text-sm text-white">{row.expert_id}</td>
+                                            <td className="py-3 px-4 text-sm text-slate-300 text-right">{row.attempts}</td>
+                                            <td className="py-3 px-4 text-sm text-right">
+                                                <span className={`font-medium ${
+                                                    score >= 80 ? 'text-emerald-400' :
+                                                    score >= 60 ? 'text-amber-400' :
+                                                    'text-rose-400'
+                                                }`}>
+                                                    {score.toFixed(1)}%
+                                                </span>
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden ml-auto">
+                                                    <div 
+                                                        className={`h-full rounded-full ${
+                                                            score >= 80 ? 'bg-emerald-500' :
+                                                            score >= 60 ? 'bg-amber-500' :
+                                                            'bg-rose-500'
+                                                        }`}
+                                                        style={{ width: `${Math.min(score, 100)}%` }}
+                                                    />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Task Consensus Table (Low Consensus Tasks) */}
+            {sortedTaskConsensus.length > 0 && (
+                <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-white">Tasks with Lowest Consensus</h3>
+                        <span className="text-xs text-slate-500">Click to filter by task</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b border-white/10">
+                                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Task ID</th>
+                                    <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Attempts</th>
+                                    <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Overall Consensus</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sortedTaskConsensus.slice(0, 20).map((row, idx) => {
+                                    const isActive = activeFilters?.taskId === row.task_id;
+                                    const consensus = row.overall_consensus * 100;
+                                    return (
+                                        <tr 
+                                            key={idx}
+                                            onClick={() => onTaskClick && onTaskClick(row.task_id)}
+                                            className={`border-b border-white/5 transition-colors cursor-pointer ${
+                                                isActive ? 'bg-indigo-500/30' : 'hover:bg-indigo-500/20'
+                                            }`}
+                                        >
+                                            <td className="py-3 px-4 text-sm text-white font-mono">
+                                                {row.task_id.length > 30 ? row.task_id.substring(0, 27) + '...' : row.task_id}
+                                            </td>
+                                            <td className="py-3 px-4 text-sm text-slate-300 text-right">{row.attempts}</td>
+                                            <td className="py-3 px-4 text-sm text-right">
+                                                <span className={`font-medium ${
+                                                    consensus >= 80 ? 'text-emerald-400' :
+                                                    consensus >= 60 ? 'text-amber-400' :
+                                                    'text-rose-400'
+                                                }`}>
+                                                    {consensus.toFixed(1)}%
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ========================================================
+// CONSENSUS CALCULATION LOGIC
+// ========================================================
+const calculateConsensusMetrics = (filteredData, config) => {
+    if (!config?.metricNeeds?.consensus || !config.taskIdColumn || !filteredData || filteredData.length === 0) {
+        return null;
+    }
+
+    const consensusColumns = config.consensusColumns || [];
+    if (consensusColumns.length === 0) return null;
+
+    // Group by task
+    const tasks = {};
+    const experts = {};
+
+    filteredData.forEach(r => {
+        const taskId = r.taskId;
+        const expertId = r.expertId;
+
+        if (!taskId) return;
+
+        if (!tasks[taskId]) tasks[taskId] = { attempts: 0, answers: {} };
+        tasks[taskId].attempts++;
+
+        if (!experts[expertId]) experts[expertId] = { attempts: 0, answers: {} };
+        experts[expertId].attempts++;
+
+        consensusColumns.forEach(q => {
+            const val = r.raw[q];
+            tasks[taskId].answers[q] = tasks[taskId].answers[q] || [];
+            tasks[taskId].answers[q].push(val);
+
+            experts[expertId].answers[q] = experts[expertId].answers[q] || [];
+            experts[expertId].answers[q].push({ taskId, answer: val });
+        });
+    });
+
+    // Calculate consensus answer for each question in each task
+    const calculateConsensusAnswer = (values) => {
+        const filtered = values.filter(v => v && String(v).toLowerCase() !== 'none' && String(v).toLowerCase() !== 'na');
+        if (filtered.length === 0) return { answer: null, rate: 0 };
+
+        const counts = {};
+        filtered.forEach(v => {
+            const key = String(v).toLowerCase().trim();
+            counts[key] = (counts[key] || 0) + 1;
+        });
+
+        const maxCount = Math.max(...Object.values(counts));
+        const consensusAnswer = Object.keys(counts).find(k => counts[k] === maxCount);
+
+        return { answer: consensusAnswer, rate: maxCount / filtered.length };
+    };
+
+    // Task consensus
+    const taskConsensus = Object.entries(tasks).map(([taskId, info]) => {
+        const row = { task_id: taskId, attempts: info.attempts };
+        let rates = [];
+        
+        consensusColumns.forEach(q => {
+            const { rate } = calculateConsensusAnswer(info.answers[q] || []);
+            row[q + '_rate'] = rate;
+            if (!isNaN(rate)) rates.push(rate);
+        });
+        
+        row.overall_consensus = rates.length ? rates.reduce((a, b) => a + b, 0) / rates.length : 0;
+        return row;
+    });
+
+    // Build consensus cache for expert scoring
+    const consensusCache = {};
+    Object.keys(tasks).forEach(taskId => {
+        consensusCache[taskId] = {};
+        consensusColumns.forEach(q => {
+            consensusCache[taskId][q] = calculateConsensusAnswer(tasks[taskId].answers[q] || []).answer;
+        });
+    });
+
+    // Expert consensus scores - how often does each expert agree with consensus?
+    const expertConsensus = Object.entries(experts).map(([expertId, info]) => {
+        let totalMatches = 0, totalAnswers = 0;
+
+        consensusColumns.forEach(q => {
+            const expertAnswers = info.answers[q] || [];
+            expertAnswers.forEach(({ taskId, answer }) => {
+                const consensusAnswer = consensusCache[taskId]?.[q];
+                if (consensusAnswer && answer) {
+                    if (String(answer).toLowerCase().trim() === consensusAnswer) {
+                        totalMatches++;
+                    }
+                    totalAnswers++;
+                }
+            });
+        });
+
+        return {
+            expert_id: expertId,
+            attempts: info.attempts,
+            Consensus_Score: totalAnswers > 0 ? totalMatches / totalAnswers : 0
+        };
+    });
+
+    // Question stats - average consensus per question across all tasks
+    const questionStats = consensusColumns.map(q => {
+        const values = taskConsensus.map(t => t[q + '_rate']).filter(v => v != null);
+        const avgConsensus = values.length ? values.reduce((a, v) => a + v, 0) / values.length : 0;
+        return { 
+            question: q, 
+            consensus: avgConsensus, 
+            consensus_disagreement_rate: 1 - avgConsensus 
+        };
+    });
+
+    // KPIs
+    const uniqueTasks = Object.keys(tasks).length;
+    const uniqueExperts = Object.keys(experts).length;
+    const totalAttempts = filteredData.length;
+    const avgAttemptsPerTask = uniqueTasks ? totalAttempts / uniqueTasks : 0;
+    const projectConsensus = uniqueTasks ? taskConsensus.reduce((a, t) => a + t.overall_consensus, 0) / uniqueTasks : 0;
+
+    return {
+        taskConsensus,
+        expertConsensus,
+        questionStats,
+        uniqueTasks,
+        uniqueExperts,
+        totalAttempts,
+        avgAttemptsPerTask,
+        projectConsensus,
+        consensusDisagreementRate: 1 - projectConsensus
+    };
+};
+
 // Metric card component
-function MetricCard({ title, value, subtitle, icon: Icon, color = 'indigo' }) {
+function MetricCard({ title, value, subtitle, icon: Icon, color = 'indigo', onClick, isActive }) {
     const colorClasses = {
         indigo: 'from-indigo-500 to-purple-600',
         emerald: 'from-emerald-500 to-teal-600',
@@ -346,11 +872,21 @@ function MetricCard({ title, value, subtitle, icon: Icon, color = 'indigo' }) {
     };
 
     return (
-        <div className={`bg-gradient-to-br ${colorClasses[color]} rounded-2xl p-5 text-white shadow-xl`}>
+        <div 
+            className={`bg-gradient-to-br ${colorClasses[color]} rounded-2xl p-5 text-white shadow-xl transition-all ${
+                onClick ? 'cursor-pointer hover:scale-105' : ''
+            } ${isActive ? 'ring-4 ring-white/50' : ''}`}
+            onClick={onClick}
+        >
             <div className="flex justify-between items-start mb-3">
                 <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
                     <Icon className="h-5 w-5" />
                 </div>
+                {onClick && (
+                    <div className="text-xs bg-white/20 px-2 py-0.5 rounded-full">
+                        Click to filter
+                    </div>
+                )}
             </div>
             <div className="text-3xl font-bold mb-1">{value}</div>
             <div className="text-sm opacity-80">{title}</div>
@@ -360,7 +896,7 @@ function MetricCard({ title, value, subtitle, icon: Icon, color = 'indigo' }) {
 }
 
 // Data table component
-function DataTable({ data, title, columns, searchable = true }) {
+function DataTable({ data, title, columns, searchable = true, onRowClick, clickableColumn, activeValue }) {
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'desc' });
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
@@ -494,19 +1030,29 @@ function DataTable({ data, title, columns, searchable = true }) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                        {paginatedData.map((row, idx) => (
-                            <tr key={idx} className="hover:bg-white/5 transition-colors">
-                                {headers.map(header => (
-                                    <td
-                                        key={header}
-                                        className="px-4 py-3 text-sm text-slate-300 whitespace-nowrap"
-                                        style={getCellStyle(row[header], header)}
-                                    >
-                                        {formatValue(row[header], header)}
-                                    </td>
-                                ))}
-                            </tr>
-                        ))}
+                        {paginatedData.map((row, idx) => {
+                            const rowValue = clickableColumn ? (row[clickableColumn] || row['Expert'] || row['Expert ID'] || row['expert_id']) : null;
+                            const isRowActive = activeValue !== null && activeValue !== undefined && rowValue === activeValue;
+                            return (
+                                <tr 
+                                    key={idx} 
+                                    className={`transition-colors ${
+                                        onRowClick ? 'cursor-pointer hover:bg-indigo-500/20' : 'hover:bg-white/5'
+                                    } ${isRowActive ? 'bg-indigo-500/30' : ''}`}
+                                    onClick={() => onRowClick && onRowClick(row)}
+                                >
+                                    {headers.map(header => (
+                                        <td
+                                            key={header}
+                                            className="px-4 py-3 text-sm text-slate-300 whitespace-nowrap"
+                                            style={getCellStyle(row[header], header)}
+                                        >
+                                            {formatValue(row[header], header)}
+                                        </td>
+                                    ))}
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
@@ -1861,7 +2407,7 @@ function DataParsingSettings({ dataSources, onComplete, onCancel }) {
 // Setup Wizard Component
 function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }) {
     const [step, setStep] = useState(1);
-    const totalSteps = 7;
+    const totalSteps = 6;
 
     const [config, setConfig] = useState({
         projectType: '',
@@ -1873,6 +2419,8 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
         categoryColumn: '',
         reviewerColumn: '',
         taskLinkColumn: '',
+        taskIdColumn: '',           // For consensus - which column has task IDs
+        consensusColumns: [],       // Which columns to calculate consensus on
         qualityDimensionColumns: [],
         passValues: [],
         minorValues: [],
@@ -2268,6 +2816,66 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
                                 </div>
                             </div>
                         )}
+
+                        {/* Consensus Configuration */}
+                        {config.metricNeeds.consensus && (
+                            <div className="mt-6 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+                                <h4 className="font-medium text-purple-300 mb-4 flex items-center gap-2">
+                                    <Activity className="h-4 w-4" />
+                                    Consensus Configuration
+                                </h4>
+                                
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm text-slate-400 mb-2">
+                                            Task ID Column <span className="text-rose-400">*</span>
+                                        </label>
+                                        <select
+                                            value={config.taskIdColumn}
+                                            onChange={(e) => updateConfig('taskIdColumn', e.target.value)}
+                                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                                        >
+                                            <option value="">Select column...</option>
+                                            {columns.map(col => (
+                                                <option key={col} value={col}>{col}</option>
+                                            ))}
+                                        </select>
+                                        <p className="text-xs text-slate-500 mt-1">Column that uniquely identifies each task (for grouping multiple reviews)</p>
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-sm text-slate-400 mb-2">
+                                            Consensus Columns (questions/dimensions to compare)
+                                        </label>
+                                        <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 bg-white/5 rounded-lg border border-white/10">
+                                            {columns.map(col => (
+                                                <button
+                                                    key={col}
+                                                    onClick={() => {
+                                                        const cols = config.consensusColumns || [];
+                                                        if (cols.includes(col)) {
+                                                            updateConfig('consensusColumns', cols.filter(c => c !== col));
+                                                        } else {
+                                                            updateConfig('consensusColumns', [...cols, col]);
+                                                        }
+                                                    }}
+                                                    className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
+                                                        (config.consensusColumns || []).includes(col)
+                                                            ? 'bg-purple-500 text-white'
+                                                            : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                                                    }`}
+                                                >
+                                                    {col}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            Select columns containing answers to compare for consensus (e.g., quality dimensions, rating categories)
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
 
@@ -2521,64 +3129,6 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
                 return (
                     <div className="space-y-6">
                         <div className="text-center mb-8">
-                            <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                <DollarSign className="h-8 w-8 text-white" />
-                            </div>
-                            <h2 className="text-2xl font-bold text-white mb-2">Payment Data</h2>
-                            <p className="text-slate-400">Does your data include payment information?</p>
-                        </div>
-
-                        <div className="flex justify-center gap-4 mb-8">
-                            <button
-                                onClick={() => updateConfig('hasPaymentData', true)}
-                                className={`px-8 py-4 rounded-xl border-2 transition-all ${config.hasPaymentData
-                                    ? 'border-amber-500 bg-amber-500/20 text-white'
-                                    : 'border-white/10 bg-white/5 text-slate-300 hover:border-white/30'
-                                    }`}
-                            >
-                                <DollarSign className="h-8 w-8 mx-auto mb-2" />
-                                <div className="font-semibold">Yes, include payment</div>
-                            </button>
-                            <button
-                                onClick={() => updateConfig('hasPaymentData', false)}
-                                className={`px-8 py-4 rounded-xl border-2 transition-all ${!config.hasPaymentData
-                                    ? 'border-slate-500 bg-slate-500/20 text-white'
-                                    : 'border-white/10 bg-white/5 text-slate-300 hover:border-white/30'
-                                    }`}
-                            >
-                                <X className="h-8 w-8 mx-auto mb-2" />
-                                <div className="font-semibold">No payment data</div>
-                            </button>
-                        </div>
-
-                        {config.hasPaymentData && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6 bg-amber-500/10 border border-amber-500/30 rounded-xl">
-                                {['approved', 'rejected', 'rate', 'total'].map(field => (
-                                    <div key={field}>
-                                        <label className="block text-sm font-medium text-amber-300 mb-2 capitalize">
-                                            {field === 'approved' ? 'Approved Tasks Pay' :
-                                                field === 'rejected' ? 'Rejected Tasks Pay' :
-                                                    field === 'rate' ? 'Pay Rate' : 'Total Payment'} Column
-                                        </label>
-                                        <select
-                                            value={config.paymentColumns[field]}
-                                            onChange={(e) => updateNestedConfig('paymentColumns', field, e.target.value)}
-                                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white"
-                                        >
-                                            <option value="">Select column...</option>
-                                            {columns.map(col => <option key={col} value={col}>{col}</option>)}
-                                        </select>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                );
-
-            case 6:
-                return (
-                    <div className="space-y-6">
-                        <div className="text-center mb-8">
                             <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                                 <Palette className="h-8 w-8 text-white" />
                             </div>
@@ -2646,7 +3196,7 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
                     </div>
                 );
 
-            case 7:
+            case 6:
                 return (
                     <div className="space-y-6">
                         <div className="text-center mb-8">
@@ -2692,7 +3242,7 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
 
                         {/* Summary */}
                         <div className="mt-8 p-6 bg-indigo-500/10 border border-indigo-500/30 rounded-xl">
-                            <h3 className="text-lg font-semibold text-indigo-300 mb-4">📋 Configuration Summary</h3>
+                            <h3 className="text-lg font-semibold text-indigo-300 mb-4">Configuration Summary</h3>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                 <div>
                                     <div className="text-slate-400">Project</div>
@@ -2802,6 +3352,16 @@ export default function QADashboardGenerator() {
     // Data parsing settings
     const [showParsingSettings, setShowParsingSettings] = useState(false);
     const [parsingSettings, setParsingSettings] = useState({ headerRow: 1, dateFormat: 'auto' });
+
+    // Filter state
+    const [activeFilters, setActiveFilters] = useState({
+        expert: null,
+        category: null,
+        reviewer: null,
+        status: null,
+        dateRange: { start: null, end: null },
+        taskId: null
+    });
 
     // Parse a single file and return parsed data
     const parseFile = (uploadedFile) => {
@@ -3167,46 +3727,19 @@ export default function QADashboardGenerator() {
                         console.warn(`Non-numeric score found: "${scoreStr}" for expert ${expertId}`);
                     }
                 } else if (isBinary) {
-                    const passBin = ['1', 'yes', 'true', 'y', 'strong pass', 'pass', 'accept', 'approved'];
-                    const failBin = ['0', 'no', 'false', 'n', 'fail', 'reject', 'rejected'];
+                    const passBin = ['1', 'yes', 'true', 'y', 'strong pass', 'pass'];
+                    const failBin = ['0', 'no', 'false', 'n', 'fail', 'reject'];
                     if (passBin.includes(scoreLower)) status = 'pass';
                     else if (failBin.includes(scoreLower)) status = 'fail';
                 } else {
                     // Discrete text system
-                    const normalize = (s) => String(s || '').trim().toLowerCase();
-                    const val = normalize(scoreStr);
+                    const isMinor = config.minorValues.some(v => v.toLowerCase() === scoreLower);
+                    const isPass = config.passValues.some(v => v.toLowerCase() === scoreLower);
+                    const isFail = config.failValues.some(v => v.toLowerCase() === scoreLower);
 
-                    // If no lists provided but value is numeric, fall back to numeric thresholds
-                    if (config.passValues.length === 0 && config.failValues.length === 0 && config.minorValues.length === 0 && !isNaN(numScore)) {
-                        const effectiveScore = (scoreFormat === "percentage" && numScore <= 1) ? (numScore * 100) : numScore;
-                        let failThreshold = Number.isFinite(config.numericFailThreshold)
-                            ? config.numericFailThreshold
-                            : (qualityConfig?.defaultFailThreshold ?? (uniqueNumeric[0] ?? 0));
-                        let minorThreshold = Number.isFinite(config.numericMinorThreshold)
-                            ? config.numericMinorThreshold
-                            : (qualityConfig?.defaultMinorThreshold ?? (uniqueNumeric[1] ?? (failThreshold + 1)));
-                        if (!Number.isFinite(config.numericFailThreshold) && !Number.isFinite(config.numericMinorThreshold)) {
-                            if (uniqueNumeric.length >= 2) {
-                                failThreshold = uniqueNumeric[0];
-                                minorThreshold = uniqueNumeric[1];
-                            } else if (uniqueNumeric.length === 1) {
-                                failThreshold = uniqueNumeric[0];
-                                minorThreshold = uniqueNumeric[0] + 1;
-                            }
-                        }
-                        if (!Number.isFinite(minorThreshold)) { minorThreshold = failThreshold + 1; }
-                        if (effectiveScore <= failThreshold) status = 'fail';
-                        else if (effectiveScore <= minorThreshold) status = 'minor';
-                        else status = 'pass';
-                    } else {
-                        const isMinor = config.minorValues.some(v => normalize(v) === val);
-                        const isPass = config.passValues.some(v => normalize(v) === val);
-                        const isFail = config.failValues.some(v => normalize(v) === val);
-
-                        if (isMinor) status = 'minor';
-                        else if (isPass) status = 'pass';
-                        else if (isFail) status = 'fail';
-                    }
+                    if (isMinor) status = 'minor';
+                    else if (isPass) status = 'pass';
+                    else if (isFail) status = 'fail';
                 }
             }
 
@@ -3273,12 +3806,11 @@ export default function QADashboardGenerator() {
                 ).length;
                 qualityScore = (goodCount / config.qualityDimensionColumns.length) * 100;
             } else if (isNumeric && !isNaN(numScore)) {
-                // Map numeric scores to a 0-100 quality scale based on observed range if no config range
-                const minVal = qualityConfig?.minValue ?? (uniqueNumeric[0] ?? 0);
-                const maxVal = qualityConfig?.maxValue ?? (uniqueNumeric[uniqueNumeric.length - 1] ?? (minVal + 1));
-                const denom = (maxVal - minVal) === 0 ? 1 : (maxVal - minVal);
+                // Map numeric scores to a 0-100 quality scale based on configured min/max
+                const minVal = qualityConfig?.minValue ?? 0;
+                const maxVal = qualityConfig?.maxValue ?? 100;
                 const clamped = Math.min(Math.max(numScore, minVal), maxVal);
-                qualityScore = ((clamped - minVal) / denom) * 100;
+                qualityScore = ((clamped - minVal) / (maxVal - minVal)) * 100;
             }
 
             return {
@@ -3290,20 +3822,57 @@ export default function QADashboardGenerator() {
                 category: config.categoryColumn ? String(row[config.categoryColumn] || '').trim() : '',
                 reviewer: config.reviewerColumn ? String(row[config.reviewerColumn] || '').trim() : '',
                 taskLink: config.taskLinkColumn ? String(row[config.taskLinkColumn] || '').trim() : '',
+                taskId: config.taskIdColumn ? String(row[config.taskIdColumn] || '').trim() : '',
                 qualityScore,
                 raw: row
             };
         }).filter(r => r.expertId);
     }, [rawData, config, parsingSettings]);
 
-    // Metrics
-    const metrics = useMemo(() => {
-        if (!processedData) return null;
+    // Filter handlers (need to be before useMemos that depend on filteredData)
+    const clearFilter = useCallback((filterKey) => {
+        if (filterKey === 'dateRange') {
+            setActiveFilters(prev => ({ ...prev, dateRange: { start: null, end: null } }));
+        } else {
+            setActiveFilters(prev => ({ ...prev, [filterKey]: null }));
+        }
+    }, []);
 
-        const validData = processedData.filter(r => !r.isExcluded);
-        const total = processedData.length;
+    const clearAllFilters = useCallback(() => {
+        setActiveFilters({
+            expert: null,
+            category: null,
+            reviewer: null,
+            status: null,
+            dateRange: { start: null, end: null },
+            taskId: null
+        });
+    }, []);
+
+    // Filtered data - applies active filters to processedData
+    const filteredData = useMemo(() => {
+        if (!processedData) return null;
+        
+        return processedData.filter(r => {
+            if (activeFilters.expert && r.expertId !== activeFilters.expert) return false;
+            if (activeFilters.category && r.category !== activeFilters.category) return false;
+            if (activeFilters.reviewer && r.reviewer !== activeFilters.reviewer) return false;
+            if (activeFilters.status && r.status !== activeFilters.status) return false;
+            if (activeFilters.taskId && r.taskId !== activeFilters.taskId) return false;
+            if (activeFilters.dateRange.start && r.date && r.date < activeFilters.dateRange.start) return false;
+            if (activeFilters.dateRange.end && r.date && r.date > activeFilters.dateRange.end) return false;
+            return true;
+        });
+    }, [processedData, activeFilters]);
+
+    // Metrics - uses filteredData so filters affect displayed stats
+    const metrics = useMemo(() => {
+        if (!filteredData) return null;
+
+        const validData = filteredData.filter(r => !r.isExcluded);
+        const total = filteredData.length;
         const totalValid = validData.length;
-        const excluded = processedData.filter(r => r.isExcluded).length;
+        const excluded = filteredData.filter(r => r.isExcluded).length;
         const passCount = validData.filter(r => r.status === 'pass').length;
         const minorCount = validData.filter(r => r.status === 'minor').length;
         const failCount = validData.filter(r => r.status === 'fail').length;
@@ -3312,7 +3881,7 @@ export default function QADashboardGenerator() {
         const approvalRate = totalValid > 0 ? ((passCount + minorCount) / totalValid) * 100 : 0;
         const defectRate = totalValid > 0 ? (failCount / totalValid) * 100 : 0;
 
-        const qualityScores = processedData.filter(r => r.qualityScore !== null).map(r => r.qualityScore);
+        const qualityScores = filteredData.filter(r => r.qualityScore !== null).map(r => r.qualityScore);
         const avgQuality = qualityScores.length > 0
             ? qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length : null;
 
@@ -3337,11 +3906,11 @@ export default function QADashboardGenerator() {
         return {
             total, totalValid, excluded, passCount, minorCount, failCount,
             approvalRate, defectRate, avgQuality, qualityApprovalCorrelation,
-            uniqueExperts: new Set(processedData.map(r => r.expertId)).size,
-            uniqueCategories: new Set(processedData.map(r => r.category).filter(Boolean)).size,
-            uniqueReviewers: new Set(processedData.map(r => r.reviewer).filter(Boolean)).size
+            uniqueExperts: new Set(filteredData.map(r => r.expertId)).size,
+            uniqueCategories: new Set(filteredData.map(r => r.category).filter(Boolean)).size,
+            uniqueReviewers: new Set(filteredData.map(r => r.reviewer).filter(Boolean)).size
         };
-    }, [processedData]);
+    }, [filteredData]);
 
     const passLabel = 'Strong Pass';
     const minorLabel = 'Weak Pass';
@@ -3349,9 +3918,9 @@ export default function QADashboardGenerator() {
 
     // Expert performance
     const expertPerformance = useMemo(() => {
-        if (!processedData) return [];
+        if (!filteredData) return [];
         const byExpert = {};
-        processedData.forEach(r => {
+        filteredData.forEach(r => {
             if (!byExpert[r.expertId]) byExpert[r.expertId] = { total: 0, pass: 0, minor: 0, fail: 0, excluded: 0, qualityScores: [] };
             byExpert[r.expertId].total++;
             if (r.isExcluded) byExpert[r.expertId].excluded++;
@@ -3376,14 +3945,14 @@ export default function QADashboardGenerator() {
                     ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length : null
             };
         }).sort((a, b) => b.Total - a.Total);
-    }, [processedData]);
+    }, [filteredData]);
 
     // Category breakdown
     const categoryBreakdown = useMemo(() => {
-        if (!processedData) return [];
+        if (!filteredData) return [];
         const byCategory = {};
 
-        processedData.filter(r => r.category && !r.isExcluded).forEach(r => {
+        filteredData.filter(r => r.category && !r.isExcluded).forEach(r => {
           if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
           
           if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
@@ -3409,15 +3978,76 @@ export default function QADashboardGenerator() {
             ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
                 : null
         })).sort((a, b) => b.Count - a.Count);
-    }, [processedData]);
+    }, [filteredData]);
+
+    // Date range calculation
+    const dateRange = useMemo(() => {
+        if (!rawData || rawData.length === 0 || !config?.timestampColumn) {
+            return { min: null, max: null };
+        }
+        
+        const dates = rawData
+            .map(row => {
+                const rawDate = row[config.timestampColumn];
+                if (!rawDate) return null;
+                // Try to parse date
+                const date = new Date(rawDate);
+                if (isNaN(date.getTime())) return null;
+                return date.toISOString().split('T')[0];
+            })
+            .filter(Boolean)
+            .sort();
+        
+        return {
+            min: dates[0] || null,
+            max: dates[dates.length - 1] || null
+        };
+    }, [rawData, config]);
+
+    // Consensus metrics
+    const consensusMetrics = useMemo(() => {
+        return calculateConsensusMetrics(filteredData, config);
+    }, [filteredData, config]);
+
+    // Drill-down handlers
+    const handleStatusClick = (status) => {
+        const statusMap = { 'Strong Pass': 'pass', 'Weak Pass': 'minor', 'Fail': 'fail' };
+        const mapped = statusMap[status] || status.toLowerCase();
+        setActiveFilters(prev => ({ 
+            ...prev, 
+            status: prev.status === mapped ? null : mapped 
+        }));
+    };
+
+    const handleExpertClick = (row) => {
+        const expert = row.Expert || row['Expert ID'] || row.expert_id;
+        setActiveFilters(prev => ({ 
+            ...prev, 
+            expert: prev.expert === expert ? null : expert 
+        }));
+    };
+
+    const handleCategoryClick = (row) => {
+        setActiveFilters(prev => ({ 
+            ...prev, 
+            category: prev.category === row.Category ? null : row.Category 
+        }));
+    };
+
+    const handleReviewerClick = (row) => {
+        setActiveFilters(prev => ({ 
+            ...prev, 
+            reviewer: prev.reviewer === row.Reviewer ? null : row.Reviewer 
+        }));
+    };
 
     // Reviewer stats
     const reviewerStats = useMemo(() => {
-        if (!processedData) return [];
+        if (!filteredData) return [];
         const byReviewer = {};
 
         // Only count non-excluded records with valid status
-        processedData.filter(r => r.reviewer && !r.isExcluded).forEach(r => {
+        filteredData.filter(r => r.reviewer && !r.isExcluded).forEach(r => {
           if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviews: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
           
           if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
@@ -3443,7 +4073,7 @@ export default function QADashboardGenerator() {
             ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
                 : null
         })).sort((a, b) => b['Total Reviews'] - a['Total Reviews']);
-    }, [processedData]);
+    }, [filteredData]);
 
     // Chart data
     const statusDistribution = useMemo(() => {
@@ -3457,22 +4087,22 @@ export default function QADashboardGenerator() {
     }, [metrics, passLabel, minorLabel, failLabel]);
 
     const trendData = useMemo(() => {
-        if (!processedData) return [];
+        if (!filteredData) return [];
         const byDate = {};
-        processedData.filter(r => r.date).forEach(r => {
+        filteredData.filter(r => r.date).forEach(r => {
             if (!byDate[r.date]) byDate[r.date] = { date: r.date, total: 0, pass: 0, minor: 0, fail: 0 };
             byDate[r.date].total++;
             if (r.status === 'pass') byDate[r.date].pass++;
-            if (r.status === 'minor') byDate[r.date].minor++;  // ADD THIS LINE
+            if (r.status === 'minor') byDate[r.date].minor++;
             if (r.status === 'fail') byDate[r.date].fail++;
         });
         return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
-    }, [processedData]);
+    }, [filteredData]);
 
     const qualityTrend = useMemo(() => {
-        if (!processedData) return [];
+        if (!filteredData) return [];
         const byDate = {};
-        processedData.filter(r => r.date && r.qualityScore !== null && !r.isExcluded).forEach(r => {
+        filteredData.filter(r => r.date && r.qualityScore !== null && !r.isExcluded).forEach(r => {
             if (!byDate[r.date]) byDate[r.date] = { date: r.date, sum: 0, count: 0 };
             byDate[r.date].sum += r.qualityScore;
             byDate[r.date].count += 1;
@@ -3481,7 +4111,7 @@ export default function QADashboardGenerator() {
             .map(d => ({ date: d.date, quality: d.count > 0 ? d.sum / d.count : 0 }))
             .sort((a, b) => a.date.localeCompare(b.date))
             .slice(-30);
-    }, [processedData]);
+    }, [filteredData]);
 
     // Landing Page
     if (showLandingPage) {
@@ -3642,12 +4272,47 @@ export default function QADashboardGenerator() {
                 </header>
 
                 <main className="relative z-10 max-w-7xl mx-auto px-6 py-8 space-y-8">
+                    {/* Date Filter (only show if dates exist) */}
+                    {dateRange.min && dateRange.max && (
+                        <DateFilterPanel
+                            dateRange={dateRange}
+                            selectedRange={activeFilters.dateRange}
+                            onRangeChange={(range) => setActiveFilters(prev => ({ ...prev, dateRange: range }))}
+                        />
+                    )}
+
+                    {/* Active Filters Bar */}
+                    <ActiveFiltersBar
+                        filters={activeFilters}
+                        onClearFilter={clearFilter}
+                        onClearAll={clearAllFilters}
+                        dateRange={dateRange}
+                    />
+
                     {/* Metrics */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                         <MetricCard title="Total Records" value={metrics.total.toLocaleString()} subtitle={`${metrics.excluded} excluded`} icon={FileSpreadsheet} color="indigo" />
-                        <MetricCard title="Approval Rate" value={`${metrics.approvalRate.toFixed(1)}%`} subtitle={`${passLabel}+${minorLabel} count as pass`} icon={CheckCircle2} color="emerald" />
-                        <MetricCard title="Defect Rate" value={`${metrics.defectRate.toFixed(1)}%`} subtitle={`${metrics.failCount} failed`} icon={AlertTriangle} color={metrics.defectRate > 10 ? 'rose' : 'emerald'} />
-                        <MetricCard title="Unique Experts" value={metrics.uniqueExperts.toLocaleString()} subtitle={`${metrics.uniqueReviewers} reviewers`} icon={Users} color="cyan" />
+                        <MetricCard 
+                            title="Approval Rate" 
+                            value={`${metrics.approvalRate.toFixed(1)}%`} 
+                            subtitle={`${passLabel}+${minorLabel} count as pass`} 
+                            icon={CheckCircle2} 
+                            color="emerald" 
+                        />
+                        <MetricCard 
+                            title="Defect Rate" 
+                            value={`${metrics.defectRate.toFixed(1)}%`} 
+                            subtitle={`${metrics.failCount} failed`} 
+                            icon={AlertTriangle} 
+                            color={metrics.defectRate > 10 ? 'rose' : 'emerald'} 
+                        />
+                        <MetricCard 
+                            title="Unique Experts" 
+                            value={metrics.uniqueExperts.toLocaleString()} 
+                            subtitle={`${metrics.uniqueReviewers} reviewers`} 
+                            icon={Users} 
+                            color="cyan" 
+                        />
                         {metrics.avgQuality !== null && (
                             <MetricCard title="Avg Quality" value={`${metrics.avgQuality.toFixed(1)}%`} subtitle="across dimensions" icon={Award} color="amber" />
                         )}
@@ -3655,6 +4320,15 @@ export default function QADashboardGenerator() {
                             <MetricCard title="Quality vs Approval" value={metrics.qualityApprovalCorrelation.toFixed(2)} subtitle="correlation (r)" icon={Activity} color="rose" />
                         )}
                     </div>
+
+                    {/* Consensus Metrics Panel (if enabled) */}
+                    {consensusMetrics && (
+                        <ConsensusMetricsPanel 
+                            consensusMetrics={consensusMetrics}
+                            onExpertClick={(expertId) => setActiveFilters(prev => ({...prev, expert: expertId}))}
+                            activeFilters={activeFilters}
+                        />
+                    )}
 
                     {/* Charts */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -3790,17 +4464,34 @@ export default function QADashboardGenerator() {
 
                     {/* Tables */}
                     {config.showTables.expert && expertPerformance.length > 0 && (
-                        <DataTable data={expertPerformance} title="Expert Performance"
-                            columns={['Expert', 'Total', 'Strong Pass', 'Weak Pass', 'Fail', 'Approval %', 'Weak Pass %', 'Defect %', ...(metrics.avgQuality !== null ? ['Quality %'] : [])]} />
+                        <DataTable 
+                            data={expertPerformance} 
+                            title="Expert Performance"
+                            columns={['Expert', 'Total', 'Strong Pass', 'Weak Pass', 'Fail', 'Approval %', 'Weak Pass %', 'Defect %', ...(metrics.avgQuality !== null ? ['Quality %'] : [])]}
+                            onRowClick={handleExpertClick}
+                            clickableColumn="Expert"
+                            activeValue={activeFilters.expert}
+                        />
                     )}
                     {config.showTables.category && categoryBreakdown.length > 0 && (
-                        <DataTable data={categoryBreakdown} title="Category Breakdown"
-                            columns={['Category', 'Count', 'Strong Pass', 'Weak Pass', 'Fail', 'Approval %', 'Defect %', 'Quality %']} />
+                        <DataTable 
+                            data={categoryBreakdown} 
+                            title="Category Breakdown"
+                            columns={['Category', 'Count', 'Strong Pass', 'Weak Pass', 'Fail', 'Approval %', 'Defect %', 'Quality %']}
+                            onRowClick={handleCategoryClick}
+                            clickableColumn="Category"
+                            activeValue={activeFilters.category}
+                        />
                     )}
                     {config.showTables.reviewer && reviewerStats.length > 0 && (
-                        <DataTable data={reviewerStats} title="Reviewer Statistics"
-                            columns={['Reviewer', 'Total Reviews', 'Strong Pass Given', 'Weak Pass Given', 'Fail Given', 'Approval %', 'Fail %',
-                                'Quality %']} />
+                        <DataTable 
+                            data={reviewerStats} 
+                            title="Reviewer Statistics"
+                            columns={['Reviewer', 'Total Reviews', 'Strong Pass Given', 'Weak Pass Given', 'Fail Given', 'Approval %', 'Fail %', 'Quality %']}
+                            onRowClick={handleReviewerClick}
+                            clickableColumn="Reviewer"
+                            activeValue={activeFilters.reviewer}
+                        />
                     )}
                 </main>
                 {/* Chat Panel */}
@@ -3904,5 +4595,3 @@ export default function QADashboardGenerator() {
         </div>
     );
 }
-
-
