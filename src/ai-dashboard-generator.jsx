@@ -966,11 +966,17 @@ function DataTable({ data, title, columns, searchable = true, onRowClick, clicka
         if (typeof value !== 'number') return {};
         const h = header.toLowerCase();
         if (h.includes('rate') || h.includes('%')) {
+            // Weak Pass % is neutral - don't color it
+            if (h.includes('weak pass')) {
+                return { color: '#94a3b8', fontWeight: 600 };
+            }
+            // For defect/fail rates, lower is better
             if (h.includes('defect') || h.includes('fail')) {
                 if (value <= 10) return { color: '#10b981', fontWeight: 600 };
                 if (value <= 20) return { color: '#f59e0b', fontWeight: 600 };
                 return { color: '#ef4444', fontWeight: 600 };
             } else {
+                // For approval/quality rates, higher is better
                 if (value >= 80) return { color: '#10b981', fontWeight: 600 };
                 if (value >= 60) return { color: '#f59e0b', fontWeight: 600 };
                 return { color: '#ef4444', fontWeight: 600 };
