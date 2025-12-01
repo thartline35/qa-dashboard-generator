@@ -3807,10 +3807,23 @@ export default function QADashboardGenerator() {
                 qualityScore = (goodCount / config.qualityDimensionColumns.length) * 100;
             } else if (isNumeric && !isNaN(numScore)) {
                 // Map numeric scores to a 0-100 quality scale based on configured min/max
-                const minVal = qualityConfig?.minValue ?? 0;
-                const maxVal = qualityConfig?.maxValue ?? 100;
+                // If no quality config, infer scale from actual data values
+                let minVal = qualityConfig?.minValue;
+                let maxVal = qualityConfig?.maxValue;
+                
+                if (minVal === undefined || maxVal === undefined) {
+                    // Infer from unique numeric values in the data
+                    if (uniqueNumeric.length > 0) {
+                        minVal = Math.min(...uniqueNumeric);
+                        maxVal = Math.max(...uniqueNumeric);
+                    } else {
+                        minVal = 0;
+                        maxVal = 100;
+                    }
+                }
+                
                 const clamped = Math.min(Math.max(numScore, minVal), maxVal);
-                qualityScore = ((clamped - minVal) / (maxVal - minVal)) * 100;
+                qualityScore = maxVal > minVal ? ((clamped - minVal) / (maxVal - minVal)) * 100 : 0;
             }
 
             return {
