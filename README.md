@@ -1,70 +1,197 @@
-# Getting Started with Create React App
+# QA Dashboard Generator
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+An AI-powered analytics platform that transforms quality assurance data into actionable insights with beautiful visualizations and comprehensive metrics.
 
-## Available Scripts
+![QA Dashboard Generator](./screenshots/dashboard-preview.png)
 
-In the project directory, you can run:
+## Features
 
-### `npm start`
+### Data Import
+- **Multi-file support** - Upload multiple CSV or Excel files
+- **Intelligent data joining** - Connect files by common fields (e.g., Expert ID)
+- **Auto-detection** - Automatically detects columns and suggests configurations
+- **Multi-sheet support** - Select specific sheets from Excel workbooks
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### Analytics & Metrics
+- **Approval & Defect Rates** - Track pass/fail metrics across your team
+- **Expert Performance** - Individual performance breakdowns with quality scores
+- **Reviewer Statistics** - Monitor reviewer consistency and patterns
+- **Category Analysis** - Breakdown by error type or category
+- **Trend Analysis** - Visualize quality over time
+- **Consensus Metrics** - Calculate agreement rates across multiple reviewers per task
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Interactive Features
+- **AI Chat Assistant** - Describe the custom metrics or analytics you need, and the AI will build them into your dashboard using your existing data. Perfect for project-specific calculations, custom groupings, or metrics not covered by the setup wizard.
+- **Drill-down Filtering** - Click any metric, chart, or table row to filter data
+- **Date Range Filtering** - Quick presets (Last 7/30/90 days) or custom ranges
+- **Real-time Updates** - All charts and metrics update instantly when filters change
+- **Search & Sort** - Find specific experts, categories, or reviewers quickly
 
-### `npm test`
+### Export Options
+- **CSV Export** - Download filtered data for further analysis
+- **JSON Export** - Full data export with all metrics
+- **Print-ready** - Clean layouts optimized for printing/PDF
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Project Types
+Pre-configured templates for common QA workflows:
+- Video Generation (T2V, V2V, PV2V)
+- Photography & Image Annotation
+- Medical/Healthcare
+- Coding/Programming
+- Legal Document Review
+- Language/Translation
+- General Annotation
 
-### `npm run build`
+## Tech Stack
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- **React 18** - UI framework
+- **Recharts** - Data visualization
+- **Tailwind CSS** - Styling
+- **Lucide React** - Icons
+- **PapaParse** - CSV parsing
+- **SheetJS (xlsx)** - Excel file parsing
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Installation
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/qa-dashboard-generator.git
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+# Navigate to project directory
+cd qa-dashboard-generator
 
-### `npm run eject`
+# Install dependencies
+npm install
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+# Start development server
+npm start
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+The app will open at [http://localhost:3000](http://localhost:3000)
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## Usage
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### Quick Start
 
-## Learn More
+1. **Upload Data** - Drag and drop your CSV or Excel file(s)
+2. **Select Sheets** - Choose which sheets to analyze (for Excel files)
+3. **Configure Mapping** - Map your columns to the required fields:
+   - Expert/Worker ID (required)
+   - Score/Status column (required)
+   - Timestamp, Category, Reviewer (optional)
+4. **Set Thresholds** - Define what constitutes Pass, Weak Pass, and Fail
+5. **Generate Dashboard** - View your interactive analytics dashboard
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### Score Formats Supported
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+| Format | Example Values |
+|--------|---------------|
+| Numeric (1-5) | 1, 2, 3, 4, 5 |
+| Percentage | 0.76, 85%, 92 |
+| Text Labels | Good, Bad, Strong Pass, Weak Pass, Fail |
+| Binary | Yes/No, True/False, 1/0, Pass/Fail |
 
-### Code Splitting
+### Consensus Analysis
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+For projects with multiple reviewers per task:
+1. Enable "Consensus" in Step 2
+2. Select your Task ID column
+3. Choose which columns to calculate consensus on
+4. View disagreement rates and expert accuracy scores
 
-### Analyzing the Bundle Size
+## Dashboard Sections
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+### KPI Cards
+- Total Records
+- Approval Rate
+- Defect Rate
+- Unique Experts
+- Average Quality Score
 
-### Making a Progressive Web App
+### Charts
+- Status Distribution (Donut/Pie)
+- Daily Trend Analysis (Area/Line)
+- Category Distribution (Horizontal Bar)
+- Quality Trend Over Time
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+### Tables
+- Expert Performance - Individual metrics per expert
+- Category Breakdown - Metrics by error type/category
+- Reviewer Statistics - Reviewer patterns and consistency
 
-### Advanced Configuration
+## Customization
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+### Chart Preferences
+- Status chart: Donut, Pie, or Bar
+- Trend chart: Bar, Area or Line
+- Color schemes: Purple, Blue, Green, Orange
 
-### Deployment
+### Table Visibility
+Toggle visibility for:
+- Expert Performance table
+- Category Breakdown table
+- Reviewer Statistics table
+- Detailed Records table
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## Project Structure
+```
+qa-dashboard-generator/
+├── public/
+│   ├── index.html
+│   ├── favicon.ico
+│   └── manifest.json
+├── src/
+│   ├── App.js              # Main application component
+│   ├── index.js            # Entry point
+│   └── index.css           # Tailwind imports
+├── package.json
+├── tailwind.config.js
+└── README.md
+```
 
-### `npm run build` fails to minify
+## Configuration
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+### Environment Variables
+
+No environment variables required for basic usage.
+
+### Tailwind Configuration
+
+The project uses a custom Tailwind configuration optimized for dark mode dashboards. Key colors:
+- Background: `slate-950` (#020617)
+- Cards: `slate-900` with backdrop blur
+- Accent: `indigo-500` to `purple-600` gradients
+
+## Browser Support
+
+- Chrome (recommended)
+- Firefox
+- Safari
+- Edge
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Author
+
+**Tammy Hartline**
+- Website: [tammyhartline.tech](https://tammyhartline.tech)
+- GitHub: [@tammyhartline](https://github.com/thartline35)
+
+---
+
+<p align="center">
+  Conceptualized, Designed, Engineered, and Deployed by<br>
+  <strong>AI Engineer, Tammy Hartline</strong><br>
+  © 2025 All Rights Reserved
+</p>
