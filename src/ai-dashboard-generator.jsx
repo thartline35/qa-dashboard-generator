@@ -282,6 +282,35 @@ function LandingPage({ onGetStarted }) {
                         </button>
                     </div>
 
+                    {/* Video Walkthrough Section - Commented out until video file is added */}
+                    {/* 
+                    <div className="mb-20">
+                        <div className="max-w-4xl mx-auto px-4">
+                            <div className="text-center mb-8">
+                                <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">
+                                    See It In Action
+                                </h2>
+                                <p className="text-lg text-slate-400">
+                                    Watch a quick walkthrough of the platform
+                                </p>
+                            </div>
+                            <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-4 md:p-6 shadow-2xl overflow-hidden">
+                                <div className="relative w-full bg-black rounded-xl overflow-hidden" style={{ paddingBottom: '56.25%' }}>
+                                    <video
+                                        className="absolute top-0 left-0 w-full h-full"
+                                        controls
+                                        preload="metadata"
+                                        style={{ objectFit: 'contain' }}
+                                    >
+                                        <source src="/videos/demo.mp4" type="video/mp4" />
+                                        Your browser does not support the video tag.
+                                    </video>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    */}
+
                     {/* Primary Features Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
                         <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-6 hover:border-purple-500/50 transition-all group">
@@ -728,6 +757,8 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
     const [showAllLowPerformers, setShowAllLowPerformers] = useState(false);
     const [expertSortConfig, setExpertSortConfig] = useState({ key: 'Consensus_Score', direction: 'desc' });
     const [expertSearch, setExpertSearch] = useState('');
+    const [expertCurrentPage, setExpertCurrentPage] = useState(1);
+    const [expertRowsPerPage, setExpertRowsPerPage] = useState(25);
 
     if (!consensusMetrics) return null;
 
@@ -752,6 +783,18 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
     const filteredExpertConsensus = expertSearch
         ? sortedExpertConsensus.filter(e => e.expert_id.toLowerCase().includes(expertSearch.toLowerCase()))
         : sortedExpertConsensus;
+
+    // Paginate filtered expert consensus
+    const expertTotalPages = Math.ceil(filteredExpertConsensus.length / expertRowsPerPage);
+    const paginatedExpertConsensus = useMemo(() => {
+        const start = (expertCurrentPage - 1) * expertRowsPerPage;
+        return filteredExpertConsensus.slice(start, start + expertRowsPerPage);
+    }, [filteredExpertConsensus, expertCurrentPage, expertRowsPerPage]);
+
+    // Reset to page 1 when search or rows per page changes
+    useEffect(() => {
+        setExpertCurrentPage(1);
+    }, [expertSearch, expertRowsPerPage]);
 
     // Experts below 80% consensus (low performers)
     const lowPerformingExperts = expertConsensus
@@ -965,7 +1008,7 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredExpertConsensus.slice(0, 100).map((row, idx) => {
+                            {paginatedExpertConsensus.map((row, idx) => {
                                 const isActive = activeFilters?.expert === row.expert_id;
                                 const score = row.Consensus_Score * 100;
                                 const tier = score >= 90 ? 'Excellent' : score >= 80 ? 'Good' : score >= 60 ? 'Needs Work' : 'Poor';
@@ -1001,9 +1044,39 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
                         </tbody>
                     </table>
                 </div>
-                {filteredExpertConsensus.length > 100 && (
-                    <div className="mt-3 text-center text-sm text-slate-500">
-                        Showing first 100 of {filteredExpertConsensus.length} experts
+                {(expertTotalPages > 1 || filteredExpertConsensus.length > 25) && (
+                    <div className="px-6 py-3 bg-white/5 border-t border-white/10 flex justify-between items-center flex-wrap gap-3">
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm text-slate-400">Page {expertCurrentPage} of {expertTotalPages}</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-slate-400">Rows per page:</span>
+                                <select
+                                    value={expertRowsPerPage}
+                                    onChange={(e) => setExpertRowsPerPage(Number(e.target.value))}
+                                    className="px-3 py-1 bg-white/10 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                >
+                                    {[25, 50, 75, 100, 200, 500].map(size => (
+                                        <option key={size} value={size} className="bg-slate-800">{size}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setExpertCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={expertCurrentPage === 1}
+                                className="px-3 py-1 bg-white/10 rounded-lg text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors"
+                            >
+                                Previous
+                            </button>
+                            <button
+                                onClick={() => setExpertCurrentPage(p => Math.min(expertTotalPages, p + 1))}
+                                disabled={expertCurrentPage === expertTotalPages}
+                                className="px-3 py-1 bg-white/10 rounded-lg text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors"
+                            >
+                                Next
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -1191,7 +1264,7 @@ function DataTable({ data, title, columns, searchable = true, onRowClick, clicka
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'desc' });
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const rowsPerPage = 25;
+    const [rowsPerPage, setRowsPerPage] = useState(25);
 
     const headers = useMemo(() => {
         if (!data || data.length === 0) return [];
@@ -1228,9 +1301,14 @@ function DataTable({ data, title, columns, searchable = true, onRowClick, clicka
     const paginatedData = useMemo(() => {
         const start = (currentPage - 1) * rowsPerPage;
         return filteredData.slice(start, start + rowsPerPage);
-    }, [filteredData, currentPage]);
+    }, [filteredData, currentPage, rowsPerPage]);
 
     const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+
+    // Reset to page 1 when rows per page changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [rowsPerPage]);
 
     // Early return AFTER all hooks
     if (!data || data.length === 0) return null;
@@ -1353,21 +1431,35 @@ function DataTable({ data, title, columns, searchable = true, onRowClick, clicka
                 </table>
             </div>
 
-            {totalPages > 1 && (
-                <div className="px-6 py-3 bg-white/5 border-t border-white/10 flex justify-between items-center">
-                    <span className="text-sm text-slate-400">Page {currentPage} of {totalPages}</span>
+            {(totalPages > 1 || filteredData.length > 25) && (
+                <div className="px-6 py-3 bg-white/5 border-t border-white/10 flex justify-between items-center flex-wrap gap-3">
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm text-slate-400">Page {currentPage} of {totalPages}</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-slate-400">Rows per page:</span>
+                            <select
+                                value={rowsPerPage}
+                                onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                                className="px-3 py-1 bg-white/10 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                            >
+                                {[25, 50, 75, 100, 200, 500].map(size => (
+                                    <option key={size} value={size} className="bg-slate-800">{size}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
                     <div className="flex gap-2">
                         <button
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
-                            className="px-3 py-1 bg-white/10 rounded-lg text-sm text-white disabled:opacity-50 hover:bg-white/20"
+                            className="px-3 py-1 bg-white/10 rounded-lg text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors"
                         >
                             Previous
                         </button>
                         <button
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages}
-                            className="px-3 py-1 bg-white/10 rounded-lg text-sm text-white disabled:opacity-50 hover:bg-white/20"
+                            className="px-3 py-1 bg-white/10 rounded-lg text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors"
                         >
                             Next
                         </button>
@@ -4652,7 +4744,7 @@ export default function QADashboardGenerator() {
                     {/* Wizard content */}
                     <SetupWizard
                         columns={columns}
-                        sampleData={rawData.slice(0, 100)}
+                        sampleData={rawData}
                         rawData={rawData}
                         onComplete={(c) => { setConfig(c); setShowWizard(false); }}
                         onCancel={() => {
