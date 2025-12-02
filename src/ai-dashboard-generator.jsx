@@ -2837,7 +2837,11 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
 
         switch (step) {
             case 1: return config.projectType !== '';
-            case 2: return true;
+            case 2:
+                // Consensus mode is valid on its own
+                if (config.metricNeeds.consensus) return true;
+                // Standard mode requires at least one of approval or quality
+                return config.metricNeeds.approval || config.metricNeeds.quality;
             case 3:
                 if (onlyConsensus) {
                     return config.expertIdColumn &&
@@ -2900,94 +2904,199 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
                 );
 
             case 2:
+                const isConsensusMode = config.metricNeeds.consensus;
+                const isStandardMode = !config.metricNeeds.consensus;
+
                 return (
                     <div className="space-y-6">
                         <div className="text-center mb-8">
                             <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                                 <Target className="h-8 w-8 text-white" />
                             </div>
-                            <h2 className="text-2xl font-bold text-white mb-2">What format is your score?</h2>
-                            <p className="text-slate-400">Choose one. This controls how Strong/Weak Pass vs Fail are classified.</p>
+                            <h2 className="text-2xl font-bold text-white mb-2">Choose Your Analysis Mode</h2>
+                            <p className="text-slate-400">Select your primary analysis approach</p>
                         </div>
 
-                        {(config.metricNeeds.approval || config.metricNeeds.quality) && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-300">
-                                {[
-                                    { key: 'numeric', label: 'Numeric (whole numbers)', desc: 'e.g., 1, 3, 5' },
-                                    { key: 'percentage', label: 'Percentage/Decimal', desc: 'e.g., 0.76 or 76%' },
-                                    { key: 'text', label: 'Text labels', desc: 'e.g., Good/Bad, Strong/Weak/Fail' },
-                                    { key: 'binary', label: 'Binary', desc: 'e.g., Yes/No, True/False, 0/1' },
-                                ].map(opt => (
-                                    <label key={opt.key} className="flex items-start gap-2 cursor-pointer p-3 rounded-lg border border-white/10 hover:border-emerald-400/60">
-                                        <input
-                                            type="radio"
-                                            name="scoreFormat"
-                                            value={opt.key}
-                                            checked={config.scoreFormat === opt.key}
-                                            onChange={() => updateConfig('scoreFormat', opt.key)}
-                                            className="mt-1 text-emerald-500 focus:ring-emerald-500"
-                                        />
-                                        <div>
-                                            <div className="font-semibold text-white">{opt.label}</div>
-                                            <div className="text-xs text-slate-400">{opt.desc}</div>
+                        {/* Primary Mode Selection - Radio Buttons */}
+                        <div className="space-y-4">
+                            {/* Standard Mode (Approval/Quality) */}
+                            <div
+                                className={`p-5 rounded-xl border-2 cursor-pointer transition-all ${isStandardMode
+                                    ? 'border-emerald-500 bg-emerald-500/10'
+                                    : 'border-white/10 bg-white/5 hover:border-white/30'
+                                    }`}
+                                onClick={() => updateConfig('metricNeeds', {
+                                    approval: true,
+                                    quality: false,
+                                    consensus: false,
+                                    custom: config.metricNeeds.custom
+                                })}
+                            >
+                                <div className="flex items-start gap-4">
+                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${isStandardMode ? 'border-emerald-500' : 'border-slate-500'
+                                        }`}>
+                                        {isStandardMode && (
+                                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                                            <span className="font-semibold text-white">Standard QA Mode</span>
                                         </div>
-                                    </label>
-                                ))}
-                            </div>
-                        )}
+                                        <p className="text-sm text-slate-400 mb-3">
+                                            Track pass/fail rates, quality scores, and approval metrics. Choose which metrics to include below.
+                                        </p>
 
-                        {/* Consensus-only mode notice */}
-                        {config.metricNeeds.consensus && !config.metricNeeds.approval && !config.metricNeeds.quality && (
-                            <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
-                                <div className="flex items-center gap-2 text-purple-300">
-                                    <Info className="h-5 w-5" />
-                                    <span className="font-medium">Consensus-Only Mode</span>
+                                        {/* Sub-options for Standard Mode */}
+                                        {isStandardMode && (
+                                            <div className="mt-4 p-4 bg-white/5 rounded-lg space-y-3">
+                                                <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Select metrics to track:</p>
+
+                                                <label className="flex items-start gap-3 cursor-pointer group">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={config.metricNeeds.approval}
+                                                        onChange={(e) => updateConfig('metricNeeds', {
+                                                            ...config.metricNeeds,
+                                                            approval: e.target.checked,
+                                                            consensus: false
+                                                        })}
+                                                        className="w-4 h-4 mt-0.5 rounded border-slate-500 text-emerald-500 focus:ring-emerald-500"
+                                                    />
+                                                    <div>
+                                                        <span className="text-sm font-medium text-white group-hover:text-emerald-300">Approval / Pass-Fail</span>
+                                                        <p className="text-xs text-slate-500">Track Strong Pass, Weak Pass, Fail rates and defect percentages</p>
+                                                    </div>
+                                                </label>
+
+                                                <label className="flex items-start gap-3 cursor-pointer group">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={config.metricNeeds.quality}
+                                                        onChange={(e) => updateConfig('metricNeeds', {
+                                                            ...config.metricNeeds,
+                                                            quality: e.target.checked,
+                                                            consensus: false
+                                                        })}
+                                                        className="w-4 h-4 mt-0.5 rounded border-slate-500 text-amber-500 focus:ring-amber-500"
+                                                    />
+                                                    <div>
+                                                        <span className="text-sm font-medium text-white group-hover:text-amber-300">Quality Scoring</span>
+                                                        <p className="text-xs text-slate-500">Multi-dimensional quality scores (Good/Bad across criteria), trends, correlations</p>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <p className="text-sm text-purple-200/70 mt-2">
-                                    Score format configuration is not needed for consensus analysis.
-                                    You'll configure Expert ID, Task ID, Date, and answer columns in the next step.
-                                </p>
+                            </div>
+
+                            {/* Consensus Mode */}
+                            <div
+                                className={`p-5 rounded-xl border-2 cursor-pointer transition-all ${isConsensusMode
+                                    ? 'border-purple-500 bg-purple-500/10'
+                                    : 'border-white/10 bg-white/5 hover:border-white/30'
+                                    }`}
+                                onClick={() => updateConfig('metricNeeds', {
+                                    approval: false,
+                                    quality: false,
+                                    consensus: true,
+                                    custom: config.metricNeeds.custom
+                                })}
+                            >
+                                <div className="flex items-start gap-4">
+                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${isConsensusMode ? 'border-purple-500' : 'border-slate-500'
+                                        }`}>
+                                        {isConsensusMode && (
+                                            <div className="w-2.5 h-2.5 rounded-full bg-purple-500"></div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Activity className="h-5 w-5 text-purple-400" />
+                                            <span className="font-semibold text-white">Consensus Mode</span>
+                                            <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded-full">For Annotation Projects</span>
+                                        </div>
+                                        <p className="text-sm text-slate-400 mb-3">
+                                            Analyze agreement between multiple reviewers on the same tasks. Measures how often experts agree with the majority answer.
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            <span className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-lg">Expert Consensus Scores</span>
+                                            <span className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-lg">Question Agreement Rates</span>
+                                            <span className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-lg">Low Performer Detection</span>
+                                            <span className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-lg">Performance Tiers</span>
+                                        </div>
+
+                                        {isConsensusMode && (
+                                            <div className="mt-4 p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                                                <div className="flex items-start gap-2">
+                                                    <Info className="h-4 w-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                                                    <p className="text-xs text-purple-300">
+                                                        In the next step, you'll configure the Task ID column (to group reviews) and select which answer columns to measure consensus on. No pass/fail scoring is needed.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Score Format Selection - Only show for standard mode */}
+                        {isStandardMode && (config.metricNeeds.approval || config.metricNeeds.quality) && (
+                            <div className="p-5 bg-white/5 border border-white/10 rounded-xl">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Target className="h-5 w-5 text-slate-400" />
+                                    <h4 className="font-medium text-white">Score Format</h4>
+                                </div>
+                                <p className="text-sm text-slate-500 mb-4">How is your score/status data formatted?</p>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    {[
+                                        { key: 'numeric', label: 'Numeric', desc: '1, 2, 3, 4, 5' },
+                                        { key: 'percentage', label: 'Percentage', desc: '0.76 or 76%' },
+                                        { key: 'text', label: 'Text Labels', desc: 'Good, Bad, Pass' },
+                                        { key: 'binary', label: 'Binary', desc: 'Yes/No, 0/1' },
+                                    ].map(opt => (
+                                        <button
+                                            key={opt.key}
+                                            onClick={() => updateConfig('scoreFormat', opt.key)}
+                                            className={`p-3 rounded-xl text-left transition-all ${config.scoreFormat === opt.key
+                                                ? 'bg-indigo-500/20 border-2 border-indigo-500'
+                                                : 'bg-white/5 border-2 border-white/10 hover:border-white/30'
+                                                }`}
+                                        >
+                                            <div className="font-medium text-white text-sm">{opt.label}</div>
+                                            <div className="text-xs text-slate-500">{opt.desc}</div>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
-                        <div className="p-4 rounded-xl border border-white/10 bg-white/5">
-                            <div className="flex items-center gap-2 mb-3">
-                                <Activity className="h-4 w-4 text-emerald-400" />
-                                <div className="text-sm font-semibold text-white">Metrics Needed</div>
+                        {/* Validation warning */}
+                        {isStandardMode && !config.metricNeeds.approval && !config.metricNeeds.quality && (
+                            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                                <div className="flex items-center gap-2 text-amber-300">
+                                    <AlertTriangle className="h-5 w-5" />
+                                    <span className="text-sm font-medium">Please select at least one metric type (Approval or Quality)</span>
+                                </div>
                             </div>
-                            <div className="space-y-2 text-sm text-slate-300">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={config.metricNeeds.approval}
-                                        onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, approval: e.target.checked })}
-                                    />
-                                    Approval / Pass-Fail
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={config.metricNeeds.quality}
-                                        onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, quality: e.target.checked })}
-                                    />
-                                    Quality Score
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={config.metricNeeds.consensus}
-                                        onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, consensus: e.target.checked })}
-                                    />
-                                    Consensus (multiple reviews per task)
-                                </label>
-                                <textarea
-                                    value={config.metricNeeds.custom || ''}
-                                    onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, custom: e.target.value })}
-                                    placeholder="Other: e.g., average grade per task, dual-score comparisons, payment-adjusted quality..."
-                                    className="w-full mt-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                                    rows={3}
-                                />
-                            </div>
+                        )}
+
+                        {/* Custom metrics text area */}
+                        <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
+                            <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
+                                <HelpCircle className="h-4 w-4" />
+                                Additional Requirements (Optional)
+                            </label>
+                            <textarea
+                                value={config.metricNeeds.custom || ''}
+                                onChange={(e) => updateConfig('metricNeeds', { ...config.metricNeeds, custom: e.target.value })}
+                                placeholder="Describe any other metrics or analysis you need..."
+                                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                rows={2}
+                            />
                         </div>
                     </div>
                 );
