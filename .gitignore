@@ -24,3 +24,10 @@ yarn-debug.log*
 yarn-error.log*
 
 .vercel
+
+# Large video files - too large for GitHub
+/videos/
+/public/videos/
+*.mp4
+*.mov
+*.avi

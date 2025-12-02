@@ -282,8 +282,7 @@ function LandingPage({ onGetStarted }) {
                         </button>
                     </div>
 
-                    {/* Video Walkthrough Section - Commented out until video file is added */}
-                    {/* 
+                    {/* Video Walkthrough Section */}
                     <div className="mb-20">
                         <div className="max-w-4xl mx-auto px-4">
                             <div className="text-center mb-8">
@@ -309,7 +308,6 @@ function LandingPage({ onGetStarted }) {
                             </div>
                         </div>
                     </div>
-                    */}
 
                     {/* Primary Features Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
