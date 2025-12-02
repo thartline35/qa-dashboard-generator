@@ -10,7 +10,7 @@ import {
     Info, BarChart3, Table2, Users, UserCheck, FolderOpen, Calendar, Zap,
     Filter, DollarSign, Palette, ArrowRight, ArrowLeft, Download,
     HelpCircle, Database, Activity, FileText, Clock, Target, Award,
-    Video, RefreshCw, Camera, 
+    Video, RefreshCw, Camera,
     Stethoscope, Code, Scale, Globe, FileEdit,
     MessageSquare, Send, Sparkles, Home, Menu, ExternalLink
 } from 'lucide-react';
@@ -341,9 +341,9 @@ function LandingPage({ onGetStarted }) {
 // Shows currently active filters with ability to clear them
 // ========================================================
 function ActiveFiltersBar({ filters, onClearFilter, onClearAll, dateRange }) {
-    const hasFilters = filters.expert || filters.category || filters.reviewer || 
-                       filters.status || filters.taskId || filters.dateRange.start || filters.dateRange.end;
-    
+    const hasFilters = filters.expert || filters.category || filters.reviewer ||
+        filters.status || filters.taskId || filters.dateRange.start || filters.dateRange.end;
+
     if (!hasFilters) return null;
 
     return (
@@ -387,11 +387,10 @@ function ActiveFiltersBar({ filters, onClearFilter, onClearAll, dateRange }) {
                     </span>
                 )}
                 {filters.status && (
-                    <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm border ${
-                        filters.status === 'pass' ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300' :
+                    <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm border ${filters.status === 'pass' ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300' :
                         filters.status === 'minor' ? 'bg-amber-500/20 border-amber-500/40 text-amber-300' :
-                        'bg-rose-500/20 border-rose-500/40 text-rose-300'
-                    }`}>
+                            'bg-rose-500/20 border-rose-500/40 text-rose-300'
+                        }`}>
                         Status: {filters.status === 'pass' ? 'Strong Pass' : filters.status === 'minor' ? 'Weak Pass' : 'Fail'}
                         <button onClick={() => onClearFilter('status')} className="hover:text-white">
                             <X className="h-3 w-3" />
@@ -454,7 +453,7 @@ function DateFilterPanel({ dateRange, selectedRange, onRangeChange }) {
     const applyQuickFilter = (filter) => {
         const today = new Date();
         let start, end;
-        
+
         if (filter.days) {
             end = today.toISOString().split('T')[0];
             start = new Date(today.getTime() - filter.days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -465,7 +464,7 @@ function DateFilterPanel({ dateRange, selectedRange, onRangeChange }) {
             start = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split('T')[0];
             end = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0];
         }
-        
+
         setLocalStart(start);
         setLocalEnd(end);
         onRangeChange({ start, end });
@@ -482,7 +481,7 @@ function DateFilterPanel({ dateRange, selectedRange, onRangeChange }) {
                     Data range: {dateRange.min} to {dateRange.max}
                 </span>
             </div>
-            
+
             {/* Quick filters */}
             <div className="flex flex-wrap gap-2 mb-4">
                 {quickFilters.map((filter, idx) => (
@@ -545,7 +544,7 @@ function DateFilterPanel({ dateRange, selectedRange, onRangeChange }) {
 // ========================================================
 function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, activeFilters }) {
     if (!consensusMetrics) return null;
-    
+
     const { taskConsensus, expertConsensus, questionStats, projectConsensus, consensusDisagreementRate, uniqueTasks, avgAttemptsPerTask } = consensusMetrics;
 
     // Prepare chart data for question stats
@@ -596,14 +595,14 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
                         <BarChart data={questionChartData} layout="vertical">
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                             <XAxis type="number" domain={[0, 100]} stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-                            <YAxis 
-                                type="category" 
-                                dataKey="name" 
-                                stroke="#64748b" 
-                                tick={{ fill: '#94a3b8', fontSize: 11 }} 
+                            <YAxis
+                                type="category"
+                                dataKey="name"
+                                stroke="#64748b"
+                                tick={{ fill: '#94a3b8', fontSize: 11 }}
                                 width={150}
                             />
-                            <Tooltip 
+                            <Tooltip
                                 contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
                                 formatter={(value) => [`${value}%`, 'Consensus']}
                                 labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
@@ -636,32 +635,29 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
                                     const isActive = activeFilters?.expert === row.expert_id;
                                     const score = row.Consensus_Score * 100;
                                     return (
-                                        <tr 
+                                        <tr
                                             key={idx}
                                             onClick={() => onExpertClick && onExpertClick(row.expert_id)}
-                                            className={`border-b border-white/5 transition-colors cursor-pointer ${
-                                                isActive ? 'bg-indigo-500/30' : 'hover:bg-indigo-500/20'
-                                            }`}
+                                            className={`border-b border-white/5 transition-colors cursor-pointer ${isActive ? 'bg-indigo-500/30' : 'hover:bg-indigo-500/20'
+                                                }`}
                                         >
                                             <td className="py-3 px-4 text-sm text-white">{row.expert_id}</td>
                                             <td className="py-3 px-4 text-sm text-slate-300 text-right">{row.attempts}</td>
                                             <td className="py-3 px-4 text-sm text-right">
-                                                <span className={`font-medium ${
-                                                    score >= 80 ? 'text-emerald-400' :
+                                                <span className={`font-medium ${score >= 80 ? 'text-emerald-400' :
                                                     score >= 60 ? 'text-amber-400' :
-                                                    'text-rose-400'
-                                                }`}>
+                                                        'text-rose-400'
+                                                    }`}>
                                                     {score.toFixed(1)}%
                                                 </span>
                                             </td>
                                             <td className="py-3 px-4">
                                                 <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden ml-auto">
-                                                    <div 
-                                                        className={`h-full rounded-full ${
-                                                            score >= 80 ? 'bg-emerald-500' :
+                                                    <div
+                                                        className={`h-full rounded-full ${score >= 80 ? 'bg-emerald-500' :
                                                             score >= 60 ? 'bg-amber-500' :
-                                                            'bg-rose-500'
-                                                        }`}
+                                                                'bg-rose-500'
+                                                            }`}
                                                         style={{ width: `${Math.min(score, 100)}%` }}
                                                     />
                                                 </div>
@@ -696,23 +692,21 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
                                     const isActive = activeFilters?.taskId === row.task_id;
                                     const consensus = row.overall_consensus * 100;
                                     return (
-                                        <tr 
+                                        <tr
                                             key={idx}
                                             onClick={() => onTaskClick && onTaskClick(row.task_id)}
-                                            className={`border-b border-white/5 transition-colors cursor-pointer ${
-                                                isActive ? 'bg-indigo-500/30' : 'hover:bg-indigo-500/20'
-                                            }`}
+                                            className={`border-b border-white/5 transition-colors cursor-pointer ${isActive ? 'bg-indigo-500/30' : 'hover:bg-indigo-500/20'
+                                                }`}
                                         >
                                             <td className="py-3 px-4 text-sm text-white font-mono">
                                                 {row.task_id.length > 30 ? row.task_id.substring(0, 27) + '...' : row.task_id}
                                             </td>
                                             <td className="py-3 px-4 text-sm text-slate-300 text-right">{row.attempts}</td>
                                             <td className="py-3 px-4 text-sm text-right">
-                                                <span className={`font-medium ${
-                                                    consensus >= 80 ? 'text-emerald-400' :
+                                                <span className={`font-medium ${consensus >= 80 ? 'text-emerald-400' :
                                                     consensus >= 60 ? 'text-amber-400' :
-                                                    'text-rose-400'
-                                                }`}>
+                                                        'text-rose-400'
+                                                    }`}>
                                                     {consensus.toFixed(1)}%
                                                 </span>
                                             </td>
@@ -731,7 +725,7 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
 // ========================================================
 // CONSENSUS CALCULATION LOGIC
 // ========================================================
-const calculateConsensusMetrics = (filteredData, config) => {
+const calculateConsensusMetrics = (filteredData, config, baseConsensusCache = null) => {
     if (!config?.metricNeeds?.consensus || !config.taskIdColumn || !filteredData || filteredData.length === 0) {
         return null;
     }
@@ -767,8 +761,6 @@ const calculateConsensusMetrics = (filteredData, config) => {
 
     // Calculate consensus answer for each question in each task
     const calculateConsensusAnswer = (values) => {
-        // Only filter out truly empty values - null, undefined, empty strings
-        // Keep 'na', 'n/a', 'none' etc. as they may be valid answer choices
         const filtered = values.filter(v => {
             if (v === null || v === undefined) return false;
             const str = String(v).trim();
@@ -788,22 +780,22 @@ const calculateConsensusMetrics = (filteredData, config) => {
         return { answer: consensusAnswer, rate: maxCount / filtered.length };
     };
 
-    // Task consensus
+    // Task consensus (calculated from current filtered data for display)
     const taskConsensus = Object.entries(tasks).map(([taskId, info]) => {
         const row = { task_id: taskId, attempts: info.attempts };
         let rates = [];
-        
+
         consensusColumns.forEach(q => {
             const { rate } = calculateConsensusAnswer(info.answers[q] || []);
             row[q + '_rate'] = rate;
             if (!isNaN(rate)) rates.push(rate);
         });
-        
+
         row.overall_consensus = rates.length ? rates.reduce((a, b) => a + b, 0) / rates.length : 0;
         return row;
     });
 
-    // Build consensus cache for expert scoring
+    // Build consensus cache from CURRENT data (used if no base provided)
     const consensusCache = {};
     Object.keys(tasks).forEach(taskId => {
         consensusCache[taskId] = {};
@@ -812,6 +804,10 @@ const calculateConsensusMetrics = (filteredData, config) => {
         });
     });
 
+    // Use base consensus cache if provided (for accurate expert scoring when filtered)
+    // This ensures expert scores are compared against the FULL dataset's consensus, not just filtered data
+    const consensusCacheForScoring = baseConsensusCache || consensusCache;
+
     // Expert consensus scores - how often does each expert agree with consensus?
     const expertConsensus = Object.entries(experts).map(([expertId, info]) => {
         let totalMatches = 0, totalAnswers = 0;
@@ -819,7 +815,7 @@ const calculateConsensusMetrics = (filteredData, config) => {
         consensusColumns.forEach(q => {
             const expertAnswers = info.answers[q] || [];
             expertAnswers.forEach(({ taskId, answer }) => {
-                const consensusAnswer = consensusCache[taskId]?.[q];
+                const consensusAnswer = consensusCacheForScoring[taskId]?.[q];
                 if (consensusAnswer && answer) {
                     if (String(answer).toLowerCase().trim() === consensusAnswer) {
                         totalMatches++;
@@ -840,10 +836,10 @@ const calculateConsensusMetrics = (filteredData, config) => {
     const questionStats = consensusColumns.map(q => {
         const values = taskConsensus.map(t => t[q + '_rate']).filter(v => v != null);
         const avgConsensus = values.length ? values.reduce((a, v) => a + v, 0) / values.length : 0;
-        return { 
-            question: q, 
-            consensus: avgConsensus, 
-            consensus_disagreement_rate: 1 - avgConsensus 
+        return {
+            question: q,
+            consensus: avgConsensus,
+            consensus_disagreement_rate: 1 - avgConsensus
         };
     });
 
@@ -863,7 +859,8 @@ const calculateConsensusMetrics = (filteredData, config) => {
         totalAttempts,
         avgAttemptsPerTask,
         projectConsensus,
-        consensusDisagreementRate: 1 - projectConsensus
+        consensusDisagreementRate: 1 - projectConsensus,
+        consensusCache // Return so it can be passed as base for filtered calculations
     };
 };
 
@@ -878,10 +875,9 @@ function MetricCard({ title, value, subtitle, icon: Icon, color = 'indigo', onCl
     };
 
     return (
-        <div 
-            className={`bg-gradient-to-br ${colorClasses[color]} rounded-2xl p-5 text-white shadow-xl transition-all ${
-                onClick ? 'cursor-pointer hover:scale-105' : ''
-            } ${isActive ? 'ring-4 ring-white/50' : ''}`}
+        <div
+            className={`bg-gradient-to-br ${colorClasses[color]} rounded-2xl p-5 text-white shadow-xl transition-all ${onClick ? 'cursor-pointer hover:scale-105' : ''
+                } ${isActive ? 'ring-4 ring-white/50' : ''}`}
             onClick={onClick}
         >
             <div className="flex justify-between items-start mb-3">
@@ -1046,11 +1042,10 @@ function DataTable({ data, title, columns, searchable = true, onRowClick, clicka
                             const rowValue = clickableColumn ? (row[clickableColumn] || row['Expert'] || row['Expert ID'] || row['expert_id']) : null;
                             const isRowActive = activeValue !== null && activeValue !== undefined && rowValue === activeValue;
                             return (
-                                <tr 
-                                    key={idx} 
-                                    className={`transition-colors ${
-                                        onRowClick ? 'cursor-pointer hover:bg-indigo-500/20' : 'hover:bg-white/5'
-                                    } ${isRowActive ? 'bg-indigo-500/30' : ''}`}
+                                <tr
+                                    key={idx}
+                                    className={`transition-colors ${onRowClick ? 'cursor-pointer hover:bg-indigo-500/20' : 'hover:bg-white/5'
+                                        } ${isRowActive ? 'bg-indigo-500/30' : ''}`}
                                     onClick={() => onRowClick && onRowClick(row)}
                                 >
                                     {headers.map(header => (
@@ -1964,14 +1959,14 @@ function DataSourceManager({
     };
 
     const canProceed = () => {
+        if (dataSources.length === 0) return false;
         if (!joinConfig?.primarySourceId) return false;
-        const primary = dataSources.find(s => s.id === joinConfig.primarySourceId);
-        if (!primary || primary.data.length === 0) return false;
 
-        // Check all joins are configured
-        for (const join of (joinConfig.joins || [])) {
-            if (!join.primaryKey || !join.foreignKey) return false;
+        if (joinConfig.joins?.length > 0) {
+            const incompleteJoins = joinConfig.joins.filter(j => !j.primaryKey || !j.foreignKey);
+            if (incompleteJoins.length > 0) return false;
         }
+
         return true;
     };
 
@@ -2419,8 +2414,6 @@ function DataParsingSettings({ dataSources, onComplete, onCancel }) {
 // Setup Wizard Component
 function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }) {
     const [step, setStep] = useState(1);
-    const totalSteps = 6;
-
     const [config, setConfig] = useState({
         projectType: '',
         projectName: '',
@@ -2457,6 +2450,11 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
         },
         showTables: { expert: true, category: true, reviewer: true, detailed: true },
     });
+    // Skip quality threshold step (4) when only consensus is selected
+    const onlyConsensus = config.metricNeeds.consensus &&
+        !config.metricNeeds.approval &&
+        !config.metricNeeds.quality;
+    const totalSteps = onlyConsensus ? 3 : 4;
 
     const autoDetectColumns = useCallback((projectType) => {
         if (!projectType || !columns.length) return;
@@ -2544,16 +2542,22 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
     };
 
     const canProceed = () => {
+        const onlyConsensus = config.metricNeeds.consensus &&
+            !config.metricNeeds.approval &&
+            !config.metricNeeds.quality;
+
         switch (step) {
             case 1: return config.projectType !== '';
-            case 2: return (config.scoreFormat || '') !== '';
-            case 3: return config.expertIdColumn !== '' && config.scoreColumn !== '';
-            case 4:
-                const qualityCfg = QUALITY_TYPES[config.qualityType];
-                const fmt = config.scoreFormat || 'numeric';
-                const numericLike = qualityCfg?.isNumeric || config.qualityType === 'percentage' || fmt === 'numeric' || fmt === 'percentage';
-                if (numericLike) return true;
-                return config.passValues.length > 0 || config.failValues.length > 0;
+            case 2: return true;
+            case 3:
+                if (onlyConsensus) {
+                    return config.expertIdColumn &&
+                        config.taskIdColumn &&
+                        config.timestampColumn &&
+                        (config.consensusColumns?.length > 0);
+                }
+                return config.expertIdColumn && config.scoreColumn;
+            case 4: return true;
             default: return true;
         }
     };
@@ -2617,29 +2621,45 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
                             <p className="text-slate-400">Choose one. This controls how Strong/Weak Pass vs Fail are classified.</p>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-300">
-                            {[
-                                { key: 'numeric', label: 'Numeric (whole numbers)', desc: 'e.g., 1, 3, 5' },
-                                { key: 'percentage', label: 'Percentage/Decimal', desc: 'e.g., 0.76 or 76%' },
-                                { key: 'text', label: 'Text labels', desc: 'e.g., Good/Bad, Strong/Weak/Fail' },
-                                { key: 'binary', label: 'Binary', desc: 'e.g., Yes/No, True/False, 0/1' },
-                            ].map(opt => (
-                                <label key={opt.key} className="flex items-start gap-2 cursor-pointer p-3 rounded-lg border border-white/10 hover:border-emerald-400/60">
-                                    <input
-                                        type="radio"
-                                        name="scoreFormat"
-                                        value={opt.key}
-                                        checked={config.scoreFormat === opt.key}
-                                        onChange={() => updateConfig('scoreFormat', opt.key)}
-                                        className="mt-1 text-emerald-500 focus:ring-emerald-500"
-                                    />
-                                    <div>
-                                        <div className="font-semibold text-white">{opt.label}</div>
-                                        <div className="text-xs text-slate-400">{opt.desc}</div>
-                                    </div>
-                                </label>
-                            ))}
-                        </div>
+                        {(config.metricNeeds.approval || config.metricNeeds.quality) && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-300">
+                                {[
+                                    { key: 'numeric', label: 'Numeric (whole numbers)', desc: 'e.g., 1, 3, 5' },
+                                    { key: 'percentage', label: 'Percentage/Decimal', desc: 'e.g., 0.76 or 76%' },
+                                    { key: 'text', label: 'Text labels', desc: 'e.g., Good/Bad, Strong/Weak/Fail' },
+                                    { key: 'binary', label: 'Binary', desc: 'e.g., Yes/No, True/False, 0/1' },
+                                ].map(opt => (
+                                    <label key={opt.key} className="flex items-start gap-2 cursor-pointer p-3 rounded-lg border border-white/10 hover:border-emerald-400/60">
+                                        <input
+                                            type="radio"
+                                            name="scoreFormat"
+                                            value={opt.key}
+                                            checked={config.scoreFormat === opt.key}
+                                            onChange={() => updateConfig('scoreFormat', opt.key)}
+                                            className="mt-1 text-emerald-500 focus:ring-emerald-500"
+                                        />
+                                        <div>
+                                            <div className="font-semibold text-white">{opt.label}</div>
+                                            <div className="text-xs text-slate-400">{opt.desc}</div>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Consensus-only mode notice */}
+                        {config.metricNeeds.consensus && !config.metricNeeds.approval && !config.metricNeeds.quality && (
+                            <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+                                <div className="flex items-center gap-2 text-purple-300">
+                                    <Info className="h-5 w-5" />
+                                    <span className="font-medium">Consensus-Only Mode</span>
+                                </div>
+                                <p className="text-sm text-purple-200/70 mt-2">
+                                    Score format configuration is not needed for consensus analysis.
+                                    You'll configure Expert ID, Task ID, Date, and answer columns in the next step.
+                                </p>
+                            </div>
+                        )}
 
                         <div className="p-4 rounded-xl border border-white/10 bg-white/5">
                             <div className="flex items-center gap-2 mb-3">
@@ -2723,32 +2743,41 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
                                 </select>
                             </div>
 
-                            <div>
-                                <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
-                                    <Target className="h-4 w-4 text-emerald-400" />
-                                    Score/Status <span className="text-rose-400">*</span>
-                                </label>
-                                <select
-                                    value={config.scoreColumn}
-                                    onChange={(e) => updateConfig('scoreColumn', e.target.value)}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                                >
-                                    <option value="">Select column...</option>
-                                    {columns.map(col => <option key={col} value={col}>{col}</option>)}
-                                </select>
-                            </div>
+                            {(config.metricNeeds.approval || config.metricNeeds.quality) && (
+                                <div>
+                                    <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
+                                        <Target className="h-4 w-4 text-emerald-400" />
+                                        Score/Status <span className="text-rose-400">*</span>
+                                    </label>
+                                    <select
+                                        value={config.scoreColumn}
+                                        onChange={(e) => updateConfig('scoreColumn', e.target.value)}
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                    >
+                                        <option value="">Select column...</option>
+                                        {columns.map(col => <option key={col} value={col}>{col}</option>)}
+                                    </select>
+                                </div>
+                            )}
 
                             <div>
                                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-2">
                                     <Calendar className="h-4 w-4 text-amber-400" />
                                     Timestamp/Date
+                                    {config.metricNeeds.consensus && !config.metricNeeds.approval && !config.metricNeeds.quality && (
+                                        <span className="text-rose-400">*</span>
+                                    )}
                                 </label>
                                 <select
                                     value={config.timestampColumn}
                                     onChange={(e) => updateConfig('timestampColumn', e.target.value)}
                                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                                 >
-                                    <option value="">Select (optional)...</option>
+                                    <option value="">
+                                        {config.metricNeeds.consensus && !config.metricNeeds.approval && !config.metricNeeds.quality
+                                            ? "Select column..."
+                                            : "Select (optional)..."}
+                                    </option>
                                     {columns.map(col => <option key={col} value={col}>{col}</option>)}
                                 </select>
                             </div>
@@ -2836,7 +2865,7 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
                                     <Activity className="h-4 w-4" />
                                     Consensus Configuration
                                 </h4>
-                                
+
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-sm text-slate-400 mb-2">
@@ -2854,7 +2883,7 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
                                         </select>
                                         <p className="text-xs text-slate-500 mt-1">Column that uniquely identifies each task (for grouping multiple reviews)</p>
                                     </div>
-                                    
+
                                     <div>
                                         <label className="block text-sm text-slate-400 mb-2">
                                             Consensus Columns (questions/dimensions to compare)
@@ -2871,11 +2900,10 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
                                                             updateConfig('consensusColumns', [...cols, col]);
                                                         }
                                                     }}
-                                                    className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
-                                                        (config.consensusColumns || []).includes(col)
-                                                            ? 'bg-purple-500 text-white'
-                                                            : 'bg-white/10 text-slate-300 hover:bg-white/20'
-                                                    }`}
+                                                    className={`px-3 py-1.5 rounded-lg text-sm transition-all ${(config.consensusColumns || []).includes(col)
+                                                        ? 'bg-purple-500 text-white'
+                                                        : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                                                        }`}
                                                 >
                                                     {col}
                                                 </button>
@@ -3822,7 +3850,7 @@ export default function QADashboardGenerator() {
                 // If no quality config, infer scale from actual data values
                 let minVal = qualityConfig?.minValue;
                 let maxVal = qualityConfig?.maxValue;
-                
+
                 if (minVal === undefined || maxVal === undefined) {
                     // Infer from unique numeric values in the data
                     if (uniqueNumeric.length > 0) {
@@ -3833,7 +3861,7 @@ export default function QADashboardGenerator() {
                         maxVal = 100;
                     }
                 }
-                
+
                 const clamped = Math.min(Math.max(numScore, minVal), maxVal);
                 qualityScore = maxVal > minVal ? ((clamped - minVal) / (maxVal - minVal)) * 100 : 0;
             }
@@ -3877,7 +3905,7 @@ export default function QADashboardGenerator() {
     // Filtered data - applies active filters to processedData
     const filteredData = useMemo(() => {
         if (!processedData) return null;
-        
+
         return processedData.filter(r => {
             if (activeFilters.expert && r.expertId !== activeFilters.expert) return false;
             if (activeFilters.category && r.category !== activeFilters.category) return false;
@@ -3978,29 +4006,29 @@ export default function QADashboardGenerator() {
         const byCategory = {};
 
         filteredData.filter(r => r.category && !r.isExcluded).forEach(r => {
-          if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
-          
-          if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
-            byCategory[r.category].count++;
-            if (r.status === 'pass') byCategory[r.category].pass++;
-            if (r.status === 'minor') byCategory[r.category].minor++;
-            if (r.status === 'fail') byCategory[r.category].fail++;
-          }
-          if (r.qualityScore !== null) {
-            byCategory[r.category].qualityScores.push(r.qualityScore);
-          }
+            if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
+
+            if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
+                byCategory[r.category].count++;
+                if (r.status === 'pass') byCategory[r.category].pass++;
+                if (r.status === 'minor') byCategory[r.category].minor++;
+                if (r.status === 'fail') byCategory[r.category].fail++;
+            }
+            if (r.qualityScore !== null) {
+                byCategory[r.category].qualityScores.push(r.qualityScore);
+            }
         });
-      
+
         return Object.entries(byCategory).map(([cat, data]) => ({
-          Category: cat,
-          Count: data.count,
-          'Strong Pass': data.pass,
-          'Weak Pass': data.minor,
-          Fail: data.fail,
-          'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,
-          'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0,
-          'Quality %': data.qualityScores.length > 0
-            ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
+            Category: cat,
+            Count: data.count,
+            'Strong Pass': data.pass,
+            'Weak Pass': data.minor,
+            Fail: data.fail,
+            'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,
+            'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0,
+            'Quality %': data.qualityScores.length > 0
+                ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
                 : null
         })).sort((a, b) => b.Count - a.Count);
     }, [filteredData]);
@@ -4010,7 +4038,7 @@ export default function QADashboardGenerator() {
         if (!rawData || rawData.length === 0 || !config?.timestampColumn) {
             return { min: null, max: null };
         }
-        
+
         const dates = rawData
             .map(row => {
                 const rawDate = row[config.timestampColumn];
@@ -4022,7 +4050,7 @@ export default function QADashboardGenerator() {
             })
             .filter(Boolean)
             .sort();
-        
+
         return {
             min: dates[0] || null,
             max: dates[dates.length - 1] || null
@@ -4030,39 +4058,57 @@ export default function QADashboardGenerator() {
     }, [rawData, config]);
 
     // Consensus metrics
+    // Base consensus metrics (from full dataset - used as "ground truth")
+    const baseConsensusMetrics = useMemo(() => {
+        return calculateConsensusMetrics(processedData, config);
+    }, [processedData, config]);
+
+    // Consensus metrics - filtered view but compared against base consensus
     const consensusMetrics = useMemo(() => {
-        return calculateConsensusMetrics(filteredData, config);
-    }, [filteredData, config]);
+        if (!config?.metricNeeds?.consensus) return null;
+
+        // Check if any filters are active
+        const hasFilters = activeFilters.expert || activeFilters.taskId || activeFilters.category ||
+            activeFilters.reviewer || activeFilters.status ||
+            activeFilters.dateRange.start || activeFilters.dateRange.end;
+
+        if (!hasFilters) {
+            return baseConsensusMetrics;
+        }
+
+        // Calculate filtered metrics but use base consensus cache for accurate expert scoring
+        return calculateConsensusMetrics(filteredData, config, baseConsensusMetrics?.consensusCache);
+    }, [filteredData, config, baseConsensusMetrics, activeFilters]);
 
     // Drill-down handlers
     const handleStatusClick = (status) => {
         const statusMap = { 'Strong Pass': 'pass', 'Weak Pass': 'minor', 'Fail': 'fail' };
         const mapped = statusMap[status] || status.toLowerCase();
-        setActiveFilters(prev => ({ 
-            ...prev, 
-            status: prev.status === mapped ? null : mapped 
+        setActiveFilters(prev => ({
+            ...prev,
+            status: prev.status === mapped ? null : mapped
         }));
     };
 
     const handleExpertClick = (row) => {
         const expert = row.Expert || row['Expert ID'] || row.expert_id;
-        setActiveFilters(prev => ({ 
-            ...prev, 
-            expert: prev.expert === expert ? null : expert 
+        setActiveFilters(prev => ({
+            ...prev,
+            expert: prev.expert === expert ? null : expert
         }));
     };
 
     const handleCategoryClick = (row) => {
-        setActiveFilters(prev => ({ 
-            ...prev, 
-            category: prev.category === row.Category ? null : row.Category 
+        setActiveFilters(prev => ({
+            ...prev,
+            category: prev.category === row.Category ? null : row.Category
         }));
     };
 
     const handleReviewerClick = (row) => {
-        setActiveFilters(prev => ({ 
-            ...prev, 
-            reviewer: prev.reviewer === row.Reviewer ? null : row.Reviewer 
+        setActiveFilters(prev => ({
+            ...prev,
+            reviewer: prev.reviewer === row.Reviewer ? null : row.Reviewer
         }));
     };
 
@@ -4073,10 +4119,10 @@ export default function QADashboardGenerator() {
 
         // Only count non-excluded records with valid status
         filteredData.filter(r => r.reviewer && !r.isExcluded).forEach(r => {
-          if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviews: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
-          
-          if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
-            byReviewer[r.reviewer].reviews++;
+            if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviews: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
+
+            if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
+                byReviewer[r.reviewer].reviews++;
                 if (r.status === 'pass') byReviewer[r.reviewer].pass++;
                 else if (r.status === 'minor') byReviewer[r.reviewer].minor++;
                 else if (r.status === 'fail') byReviewer[r.reviewer].fail++;
@@ -4085,17 +4131,17 @@ export default function QADashboardGenerator() {
                 byReviewer[r.reviewer].qualityScores.push(r.qualityScore);
             }
         });
-      
+
         return Object.entries(byReviewer).map(([reviewer, data]) => ({
-          Reviewer: reviewer,
-          'Total Reviews': data.reviews,
-          'Strong Pass Given': data.pass,
-          'Weak Pass Given': data.minor,
-          'Fail Given': data.fail,
-          'Approval %': data.reviews > 0 ? ((data.pass + data.minor) / data.reviews) * 100 : 0,
-          'Fail %': data.reviews > 0 ? (data.fail / data.reviews) * 100 : 0,
-          'Quality %': data.qualityScores.length > 0
-            ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
+            Reviewer: reviewer,
+            'Total Reviews': data.reviews,
+            'Strong Pass Given': data.pass,
+            'Weak Pass Given': data.minor,
+            'Fail Given': data.fail,
+            'Approval %': data.reviews > 0 ? ((data.pass + data.minor) / data.reviews) * 100 : 0,
+            'Fail %': data.reviews > 0 ? (data.fail / data.reviews) * 100 : 0,
+            'Quality %': data.qualityScores.length > 0
+                ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
                 : null
         })).sort((a, b) => b['Total Reviews'] - a['Total Reviews']);
     }, [filteredData]);
@@ -4317,83 +4363,96 @@ export default function QADashboardGenerator() {
                     {/* Metrics */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                         <MetricCard title="Total Records" value={metrics.total.toLocaleString()} subtitle={`${metrics.excluded} excluded`} icon={FileSpreadsheet} color="indigo" />
-                        <MetricCard 
-                            title="Approval Rate" 
-                            value={`${metrics.approvalRate.toFixed(1)}%`} 
-                            subtitle={`${passLabel}+${minorLabel} count as pass`} 
-                            icon={CheckCircle2} 
-                            color="emerald" 
+                        {(config.metricNeeds?.approval || config.scoreColumn) && (
+                            <MetricCard
+                                title="Approval Rate"
+                                value={`${metrics.approvalRate.toFixed(1)}%`}
+                                subtitle={`${passLabel}+${minorLabel} count as pass`}
+                                icon={CheckCircle2}
+                                color="emerald"
+                            />
+                        )}
+                        {(config.metricNeeds?.approval || config.scoreColumn) && (
+                            <MetricCard
+                                title="Defect Rate"
+                                value={`${metrics.defectRate.toFixed(1)}%`}
+                                subtitle={`${metrics.failCount} failed`}
+                                icon={AlertTriangle}
+                                color={metrics.defectRate > 10 ? 'rose' : 'emerald'}
+                            />
+                        )}
+                        <MetricCard
+                            title="Unique Experts"
+                            value={metrics.uniqueExperts.toLocaleString()}
+                            subtitle={`${metrics.uniqueReviewers} reviewers`}
+                            icon={Users}
+                            color="cyan"
                         />
-                        <MetricCard 
-                            title="Defect Rate" 
-                            value={`${metrics.defectRate.toFixed(1)}%`} 
-                            subtitle={`${metrics.failCount} failed`} 
-                            icon={AlertTriangle} 
-                            color={metrics.defectRate > 10 ? 'rose' : 'emerald'} 
-                        />
-                        <MetricCard 
-                            title="Unique Experts" 
-                            value={metrics.uniqueExperts.toLocaleString()} 
-                            subtitle={`${metrics.uniqueReviewers} reviewers`} 
-                            icon={Users} 
-                            color="cyan" 
-                        />
-                        {metrics.avgQuality !== null && (
+                        {config.metricNeeds?.quality && metrics.avgQuality !== null && (
                             <MetricCard title="Avg Quality" value={`${metrics.avgQuality.toFixed(1)}%`} subtitle="across dimensions" icon={Award} color="amber" />
                         )}
-                        {metrics.qualityApprovalCorrelation !== null && (
+                        {config.metricNeeds?.quality && metrics.qualityApprovalCorrelation !== null && (
                             <MetricCard title="Quality vs Approval" value={metrics.qualityApprovalCorrelation.toFixed(2)} subtitle="correlation (r)" icon={Activity} color="rose" />
                         )}
                     </div>
 
                     {/* Consensus Metrics Panel (if enabled) */}
                     {consensusMetrics && (
-                        <ConsensusMetricsPanel 
+                        <ConsensusMetricsPanel
                             consensusMetrics={consensusMetrics}
-                            onExpertClick={(expertId) => setActiveFilters(prev => ({...prev, expert: expertId}))}
+                            onExpertClick={(expertId) => setActiveFilters(prev => ({
+                                ...prev,
+                                expert: prev.expert === expertId ? null : expertId
+                            }))}
+                            onTaskClick={(taskId) => setActiveFilters(prev => ({
+                                ...prev,
+                                taskId: prev.taskId === taskId ? null : taskId
+                            }))}
                             activeFilters={activeFilters}
                         />
                     )}
 
                     {/* Charts */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
-                            <h3 className="text-lg font-semibold text-white mb-4">Status Distribution</h3>
-                            <ResponsiveContainer width="100%" height={280}>
-                                {config.chartPreferences.statusChart === 'bar' ? (
-                                    <BarChart data={statusDistribution}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                                        <XAxis dataKey="name" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-                                        <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-                                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
-                                            itemStyle={{ color: '#e2e8f0' }} />
-                                        <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                                            {statusDistribution.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
-                                        </Bar>
-                                    </BarChart>
-                                ) : (
-                                    <PieChart>
-                                        <Pie
-                                            data={statusDistribution}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={config.chartPreferences.statusChart === 'donut' ? 60 : 0}
-                                            outerRadius={100}
-                                            paddingAngle={2}
-                                            dataKey="value"
-                                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                        >
-                                            {statusDistribution.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
-                                        </Pie>
-                                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
-                                            itemStyle={{ color: '#e2e8f0' }} />
-                                        <Legend />
-                                    </PieChart>
-                                )}
-                            </ResponsiveContainer>
-                        </div>
+                        {(config.metricNeeds?.approval || config.metricNeeds?.quality || config.scoreColumn) && statusDistribution.length > 0 && (
+                            <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+                                <h3 className="text-lg font-semibold text-white mb-4">Status Distribution</h3>
+                                <ResponsiveContainer width="100%" height={280}>
+                                    {config.chartPreferences.statusChart === 'bar' ? (
+                                        <BarChart data={statusDistribution}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                                            <XAxis dataKey="name" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+                                            <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+                                            <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                                itemStyle={{ color: '#e2e8f0' }} />
+                                            <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                                                {statusDistribution.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
+                                            </Bar>
+                                        </BarChart>
+                                    ) : (
+                                        <PieChart>
+                                            <Pie
+                                                data={statusDistribution}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={config.chartPreferences.statusChart === 'donut' ? 60 : 0}
+                                                outerRadius={100}
+                                                paddingAngle={2}
+                                                dataKey="value"
+                                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                            >
+                                                {statusDistribution.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
+                                            </Pie>
+                                            <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                                itemStyle={{ color: '#e2e8f0' }} />
+                                            <Legend />
+                                        </PieChart>
+                                    )}
+                                </ResponsiveContainer>
+                            </div>
+                        )}
 
-                        {trendData.length > 0 && (
+                        {trendData.length > 0 && (config.metricNeeds?.approval || config.metricNeeds?.quality || config.scoreColumn) && (
                             <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
                                 <h3 className="text-lg font-semibold text-white mb-4">Submissions Over Time</h3>
                                 <ResponsiveContainer width="100%" height={280}>
@@ -4451,7 +4510,7 @@ export default function QADashboardGenerator() {
                         )}
                     </div>
 
-                    {qualityTrend.length > 0 && (
+                    {qualityTrend.length > 0 && (config.metricNeeds?.quality) && (
                         <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
                             <h3 className="text-lg font-semibold text-white mb-4">Quality Over Time</h3>
                             <ResponsiveContainer width="100%" height={280}>
@@ -4472,7 +4531,10 @@ export default function QADashboardGenerator() {
                     {/* Category Chart */}
                     {categoryBreakdown.length > 0 && (
                         <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
-                            <h3 className="text-lg font-semibold text-white mb-4">Category Distribution</h3>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-semibold text-white">Category Distribution</h3>
+                                <span className="text-xs text-slate-500">Click bars to filter</span>
+                            </div>
                             <ResponsiveContainer width="100%" height={Math.max(200, categoryBreakdown.slice(0, 10).length * 40)}>
                                 <BarChart data={categoryBreakdown.slice(0, 10)} layout="vertical">
                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
@@ -4481,7 +4543,20 @@ export default function QADashboardGenerator() {
                                         tickFormatter={(v) => v.length > 25 ? v.substring(0, 22) + '...' : v} />
                                     <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
                                         itemStyle={{ color: '#e2e8f0' }} />
-                                    <Bar dataKey="Count" fill="#6366F1" radius={[0, 4, 4, 0]} />
+                                    <Bar
+                                        dataKey="Count"
+                                        fill="#6366F1"
+                                        radius={[0, 4, 4, 0]}
+                                        cursor="pointer"
+                                        onClick={(data) => {
+                                            if (data && data.Category) {
+                                                setActiveFilters(prev => ({
+                                                    ...prev,
+                                                    category: prev.category === data.Category ? null : data.Category
+                                                }));
+                                            }
+                                        }}
+                                    />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -4489,8 +4564,8 @@ export default function QADashboardGenerator() {
 
                     {/* Tables */}
                     {config.showTables.expert && expertPerformance.length > 0 && (
-                        <DataTable 
-                            data={expertPerformance} 
+                        <DataTable
+                            data={expertPerformance}
                             title="Expert Performance"
                             columns={['Expert', 'Total', 'Strong Pass', 'Weak Pass', 'Fail', 'Approval %', 'Weak Pass %', 'Defect %', ...(metrics.avgQuality !== null ? ['Quality %'] : [])]}
                             onRowClick={handleExpertClick}
@@ -4499,8 +4574,8 @@ export default function QADashboardGenerator() {
                         />
                     )}
                     {config.showTables.category && categoryBreakdown.length > 0 && (
-                        <DataTable 
-                            data={categoryBreakdown} 
+                        <DataTable
+                            data={categoryBreakdown}
                             title="Category Breakdown"
                             columns={['Category', 'Count', 'Strong Pass', 'Weak Pass', 'Fail', 'Approval %', 'Defect %', 'Quality %']}
                             onRowClick={handleCategoryClick}
@@ -4509,8 +4584,8 @@ export default function QADashboardGenerator() {
                         />
                     )}
                     {config.showTables.reviewer && reviewerStats.length > 0 && (
-                        <DataTable 
-                            data={reviewerStats} 
+                        <DataTable
+                            data={reviewerStats}
                             title="Reviewer Statistics"
                             columns={['Reviewer', 'Total Reviews', 'Strong Pass Given', 'Weak Pass Given', 'Fail Given', 'Approval %', 'Fail %', 'Quality %']}
                             onRowClick={handleReviewerClick}
