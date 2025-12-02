@@ -235,8 +235,8 @@ function LandingPage({ onGetStarted }) {
                 <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-purple-500/20 via-transparent to-transparent rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
             </div>
 
-            <main className="relative z-10 flex-1 flex items-center">
-                <div className="max-w-7xl mx-auto px-6 py-20">
+            <main className="relative z-10 flex-1">
+                <div className="max-w-7xl mx-auto px-6 py-16">
                     {/* Hero Section */}
                     <div className="text-center mb-20">
                         <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/30 rounded-full text-indigo-300 text-sm mb-6">
@@ -248,10 +248,31 @@ function LandingPage({ onGetStarted }) {
                             <br />
                             Actionable Insights
                         </h1>
-                        <p className="text-xl text-slate-400 mb-12 max-w-3xl mx-auto">
+                        <p className="text-xl text-slate-400 mb-8 max-w-3xl mx-auto">
                             Upload your quality assurance data and let AI guide you through creating comprehensive,
-                            customized dashboards with advanced analytics and beautiful visualizations.
+                            customized dashboards with advanced analytics, consensus tracking, and beautiful visualizations.
                         </p>
+
+                        {/* Feature Pills */}
+                        <div className="flex flex-wrap justify-center gap-3 mb-12">
+                            <span className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-emerald-300 text-sm">
+                                <CheckCircle2 className="h-4 w-4 inline mr-2" />
+                                Consensus Analysis
+                            </span>
+                            <span className="px-4 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full text-cyan-300 text-sm">
+                                <Filter className="h-4 w-4 inline mr-2" />
+                                Interactive Drill-Down
+                            </span>
+                            <span className="px-4 py-2 bg-purple-500/10 border border-purple-500/30 rounded-full text-purple-300 text-sm">
+                                <Users className="h-4 w-4 inline mr-2" />
+                                Expert Performance Tiers
+                            </span>
+                            <span className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-300 text-sm">
+                                <Database className="h-4 w-4 inline mr-2" />
+                                Multi-File Joining
+                            </span>
+                        </div>
+
                         <button
                             onClick={onGetStarted}
                             className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 rounded-xl text-white font-medium text-lg shadow-2xl shadow-indigo-500/30 transition-all transform hover:scale-105"
@@ -261,72 +282,233 @@ function LandingPage({ onGetStarted }) {
                         </button>
                     </div>
 
-                    {/* Features Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
-                        <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-8 hover:border-indigo-500/50 transition-all">
-                            <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center mb-4">
-                                <Upload className="h-7 w-7 text-white" />
+                    {/* Primary Features Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+                        <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-6 hover:border-purple-500/50 transition-all group">
+                            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <Activity className="h-6 w-6 text-white" />
                             </div>
-                            <h3 className="text-xl font-semibold text-white mb-3">Multi-File Support</h3>
-                            <p className="text-slate-400">
-                                Upload multiple CSV or Excel files and intelligently join them using common fields like Expert ID.
+                            <h3 className="text-lg font-semibold text-white mb-2">Consensus Analysis</h3>
+                            <p className="text-slate-400 text-sm">
+                                Track expert agreement rates across multiple reviews per task. Identify outliers and measure inter-rater reliability.
                             </p>
                         </div>
 
-                        <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-8 hover:border-emerald-500/50 transition-all">
-                            <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center mb-4">
-                                <Sparkles className="h-7 w-7 text-white" />
+                        <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-6 hover:border-cyan-500/50 transition-all group">
+                            <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <Filter className="h-6 w-6 text-white" />
                             </div>
-                            <h3 className="text-xl font-semibold text-white mb-3">AI-Guided Setup</h3>
-                            <p className="text-slate-400">
-                                Intelligent wizard automatically detects columns and suggests configurations based on your project type.
+                            <h3 className="text-lg font-semibold text-white mb-2">Interactive Filtering</h3>
+                            <p className="text-slate-400 text-sm">
+                                Click any chart, table row, or metric to drill down. Filter by expert, category, date range, status, and more.
                             </p>
                         </div>
 
-                        <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-8 hover:border-cyan-500/50 transition-all">
-                            <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center mb-4">
-                                <BarChart3 className="h-7 w-7 text-white" />
+                        <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-6 hover:border-emerald-500/50 transition-all group">
+                            <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <Users className="h-6 w-6 text-white" />
                             </div>
-                            <h3 className="text-xl font-semibold text-white mb-3">Rich Analytics</h3>
-                            <p className="text-slate-400">
-                                Expert performance tracking, category breakdowns, trend analysis, and exportable reports.
+                            <h3 className="text-lg font-semibold text-white mb-2">Performance Tiers</h3>
+                            <p className="text-slate-400 text-sm">
+                                Automatically categorize experts into performance tiers. Identify top performers and those needing coaching.
+                            </p>
+                        </div>
+
+                        <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-6 hover:border-amber-500/50 transition-all group">
+                            <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <Database className="h-6 w-6 text-white" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-white mb-2">Multi-File Support</h3>
+                            <p className="text-slate-400 text-sm">
+                                Upload multiple files and join them on common fields. Combine audit data with rosters or metadata.
                             </p>
                         </div>
                     </div>
 
-                    {/* Capabilities */}
-                    <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-12">
-                        <h2 className="text-3xl font-bold text-white mb-8 text-center">Built for Quality Professionals</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="flex items-start gap-4">
-                                <CheckCircle2 className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-1" />
+                    {/* Secondary Features */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+                        <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-6 hover:border-indigo-500/50 transition-all">
+                            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center mb-4">
+                                <Sparkles className="h-6 w-6 text-white" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-white mb-2">AI-Guided Setup</h3>
+                            <p className="text-slate-400 text-sm">
+                                Intelligent wizard auto-detects columns and suggests configurations based on your project type.
+                            </p>
+                        </div>
+
+                        <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-6 hover:border-rose-500/50 transition-all">
+                            <div className="w-12 h-12 bg-gradient-to-br from-rose-500 to-pink-600 rounded-xl flex items-center justify-center mb-4">
+                                <MessageSquare className="h-6 w-6 text-white" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-white mb-2">AI Chat Assistant</h3>
+                            <p className="text-slate-400 text-sm">
+                                Ask questions about your data, request custom calculations, or modify dashboard configuration through natural language.
+                            </p>
+                        </div>
+
+                        <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-6 hover:border-teal-500/50 transition-all">
+                            <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center mb-4">
+                                <Download className="h-6 w-6 text-white" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-white mb-2">Export Everything</h3>
+                            <p className="text-slate-400 text-sm">
+                                Export to Excel with multiple sheets, CSV, or markdown summaries. Get your data in the format you need.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Metrics Modes Section */}
+                    <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-8 mb-16">
+                        <h2 className="text-2xl font-bold text-white mb-6 text-center">Choose Your Analysis Mode</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="p-6 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+                                    <h3 className="text-lg font-semibold text-emerald-300">Approval Mode</h3>
+                                </div>
+                                <p className="text-slate-400 text-sm mb-4">
+                                    Track pass/fail rates, defect percentages, and approval metrics across your team.
+                                </p>
+                                <ul className="text-sm text-slate-500 space-y-2">
+                                    <li className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
+                                        Strong Pass / Weak Pass / Fail tracking
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
+                                        Approval rate trends over time
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
+                                        Category-level defect analysis
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div className="p-6 bg-purple-500/5 border border-purple-500/20 rounded-xl">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <Activity className="h-6 w-6 text-purple-400" />
+                                    <h3 className="text-lg font-semibold text-purple-300">Consensus Mode</h3>
+                                </div>
+                                <p className="text-slate-400 text-sm mb-4">
+                                    Analyze agreement between multiple reviewers on the same tasks. Perfect for annotation projects.
+                                </p>
+                                <ul className="text-sm text-slate-500 space-y-2">
+                                    <li className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+                                        Expert consensus accuracy scores
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+                                        Question-level agreement rates
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+                                        Low-performer identification
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div className="p-6 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <Award className="h-6 w-6 text-amber-400" />
+                                    <h3 className="text-lg font-semibold text-amber-300">Quality Mode</h3>
+                                </div>
+                                <p className="text-slate-400 text-sm mb-4">
+                                    Track multi-dimensional quality scores with Good/Bad ratings across multiple criteria.
+                                </p>
+                                <ul className="text-sm text-slate-500 space-y-2">
+                                    <li className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 bg-amber-400 rounded-full"></div>
+                                        Multiple quality dimensions
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 bg-amber-400 rounded-full"></div>
+                                        Quality score trends
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 bg-amber-400 rounded-full"></div>
+                                        Correlation analysis
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Project Types */}
+                    <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/10 p-8">
+                        <h2 className="text-2xl font-bold text-white mb-6 text-center">Built for Quality Professionals</h2>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="flex items-center gap-3 p-4 bg-white/5 rounded-xl">
+                                <Video className="h-5 w-5 text-indigo-400" />
                                 <div>
-                                    <h4 className="text-white font-semibold mb-1">Video Generation & Media QA</h4>
-                                    <p className="text-slate-400 text-sm">Track T2V, V2V, PV2V projects with expert consensus metrics</p>
+                                    <div className="text-white font-medium text-sm">Video Generation</div>
+                                    <div className="text-slate-500 text-xs">T2V, V2V, PV2V</div>
                                 </div>
                             </div>
-                            <div className="flex items-start gap-4">
-                                <CheckCircle2 className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-1" />
+                            <div className="flex items-center gap-3 p-4 bg-white/5 rounded-xl">
+                                <Camera className="h-5 w-5 text-pink-400" />
                                 <div>
-                                    <h4 className="text-white font-semibold mb-1">Medical & Healthcare Annotation</h4>
-                                    <p className="text-slate-400 text-sm">Clinical review workflows with validation tracking</p>
+                                    <div className="text-white font-medium text-sm">Photography</div>
+                                    <div className="text-slate-500 text-xs">Image annotation</div>
                                 </div>
                             </div>
-                            <div className="flex items-start gap-4">
-                                <CheckCircle2 className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-1" />
+                            <div className="flex items-center gap-3 p-4 bg-white/5 rounded-xl">
+                                <Stethoscope className="h-5 w-5 text-emerald-400" />
                                 <div>
-                                    <h4 className="text-white font-semibold mb-1">Code Review & Programming</h4>
-                                    <p className="text-slate-400 text-sm">Developer performance and correctness metrics</p>
+                                    <div className="text-white font-medium text-sm">Medical</div>
+                                    <div className="text-slate-500 text-xs">Clinical reviews</div>
                                 </div>
                             </div>
-                            <div className="flex items-start gap-4">
-                                <CheckCircle2 className="h-6 w-6 text-emerald-400 flex-shrink-0 mt-1" />
+                            <div className="flex items-center gap-3 p-4 bg-white/5 rounded-xl">
+                                <Code className="h-5 w-5 text-cyan-400" />
                                 <div>
-                                    <h4 className="text-white font-semibold mb-1">Legal, Translation & More</h4>
-                                    <p className="text-slate-400 text-sm">Customizable for any annotation or QA workflow</p>
+                                    <div className="text-white font-medium text-sm">Coding</div>
+                                    <div className="text-slate-500 text-xs">Code review</div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-4 bg-white/5 rounded-xl">
+                                <Scale className="h-5 w-5 text-amber-400" />
+                                <div>
+                                    <div className="text-white font-medium text-sm">Legal</div>
+                                    <div className="text-slate-500 text-xs">Document review</div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-4 bg-white/5 rounded-xl">
+                                <Globe className="h-5 w-5 text-blue-400" />
+                                <div>
+                                    <div className="text-white font-medium text-sm">Language</div>
+                                    <div className="text-slate-500 text-xs">Translation QA</div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-4 bg-white/5 rounded-xl">
+                                <FileEdit className="h-5 w-5 text-purple-400" />
+                                <div>
+                                    <div className="text-white font-medium text-sm">General</div>
+                                    <div className="text-slate-500 text-xs">Data labeling</div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-4 bg-white/5 rounded-xl">
+                                <Layers className="h-5 w-5 text-rose-400" />
+                                <div>
+                                    <div className="text-white font-medium text-sm">Custom</div>
+                                    <div className="text-slate-500 text-xs">Any workflow</div>
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    {/* CTA Section */}
+                    <div className="text-center mt-16">
+                        <p className="text-slate-400 mb-6">Ready to transform your QA workflow?</p>
+                        <button
+                            onClick={onGetStarted}
+                            className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 rounded-xl text-white font-medium text-lg shadow-2xl shadow-indigo-500/30 transition-all transform hover:scale-105"
+                        >
+                            Start Building Your Dashboard
+                            <ArrowRight className="h-5 w-5" />
+                        </button>
                     </div>
                 </div>
             </main>
@@ -337,7 +519,7 @@ function LandingPage({ onGetStarted }) {
 }
 
 // ========================================================
-// NEW COMPONENT: Active Filters Bar
+// Active Filters Bar
 // Shows currently active filters with ability to clear them
 // ========================================================
 function ActiveFiltersBar({ filters, onClearFilter, onClearAll, dateRange }) {
@@ -419,7 +601,7 @@ function ActiveFiltersBar({ filters, onClearFilter, onClearAll, dateRange }) {
 }
 
 // ========================================================
-// NEW COMPONENT: Date Filter Panel
+// Date Filter Panel
 // Provides date range selection with quick presets
 // ========================================================
 function DateFilterPanel({ dateRange, selectedRange, onRangeChange }) {
@@ -539,13 +721,17 @@ function DateFilterPanel({ dateRange, selectedRange, onRangeChange }) {
 }
 
 // ========================================================
-// NEW COMPONENT: Consensus Metrics Panel
+// Consensus Metrics Panel
 // Displays consensus analytics when enabled
 // ========================================================
 function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, activeFilters }) {
+    const [showAllLowPerformers, setShowAllLowPerformers] = useState(false);
+    const [expertSortConfig, setExpertSortConfig] = useState({ key: 'Consensus_Score', direction: 'desc' });
+    const [expertSearch, setExpertSearch] = useState('');
+
     if (!consensusMetrics) return null;
 
-    const { taskConsensus, expertConsensus, questionStats, projectConsensus, consensusDisagreementRate, uniqueTasks, avgAttemptsPerTask } = consensusMetrics;
+    const { taskConsensus, expertConsensus, questionStats, projectConsensus, consensusDisagreementRate, uniqueTasks, uniqueExperts, avgAttemptsPerTask } = consensusMetrics;
 
     // Prepare chart data for question stats
     const questionChartData = questionStats.map(q => ({
@@ -555,15 +741,35 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
         disagreement: parseFloat((q.consensus_disagreement_rate * 100).toFixed(1))
     }));
 
-    // Sort expert consensus by score descending
-    const sortedExpertConsensus = [...expertConsensus]
-        .sort((a, b) => b.Consensus_Score - a.Consensus_Score)
-        .slice(0, 50);
+    // Sort expert consensus
+    const sortedExpertConsensus = [...expertConsensus].sort((a, b) => {
+        const aVal = expertSortConfig.key === 'Consensus_Score' ? a.Consensus_Score : a.attempts;
+        const bVal = expertSortConfig.key === 'Consensus_Score' ? b.Consensus_Score : b.attempts;
+        return expertSortConfig.direction === 'desc' ? bVal - aVal : aVal - bVal;
+    });
 
-    // Sort task consensus by overall_consensus ascending (show worst first)
-    const sortedTaskConsensus = [...taskConsensus]
-        .sort((a, b) => a.overall_consensus - b.overall_consensus)
-        .slice(0, 100);
+    // Filter by search
+    const filteredExpertConsensus = expertSearch
+        ? sortedExpertConsensus.filter(e => e.expert_id.toLowerCase().includes(expertSearch.toLowerCase()))
+        : sortedExpertConsensus;
+
+    // Experts below 80% consensus (low performers)
+    const lowPerformingExperts = expertConsensus
+        .filter(e => e.Consensus_Score < 0.8)
+        .sort((a, b) => a.Consensus_Score - b.Consensus_Score);
+
+    // Calculate performance tiers
+    const excellentCount = expertConsensus.filter(e => e.Consensus_Score >= 0.9).length;
+    const goodCount = expertConsensus.filter(e => e.Consensus_Score >= 0.8 && e.Consensus_Score < 0.9).length;
+    const needsImprovementCount = expertConsensus.filter(e => e.Consensus_Score >= 0.6 && e.Consensus_Score < 0.8).length;
+    const poorCount = expertConsensus.filter(e => e.Consensus_Score < 0.6).length;
+
+    const handleExpertSort = (key) => {
+        setExpertSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
+        }));
+    };
 
     return (
         <div className="space-y-6">
@@ -584,6 +790,33 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
                 <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-5 text-white shadow-xl">
                     <div className="text-3xl font-bold mb-1">{avgAttemptsPerTask.toFixed(1)}</div>
                     <div className="text-sm opacity-80">Avg Attempts/Task</div>
+                </div>
+            </div>
+
+            {/* Expert Performance Tiers */}
+            <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Expert Performance Distribution</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-center">
+                        <div className="text-2xl font-bold text-emerald-400">{excellentCount}</div>
+                        <div className="text-sm text-emerald-300">Excellent (≥90%)</div>
+                        <div className="text-xs text-slate-500 mt-1">{uniqueExperts > 0 ? ((excellentCount / uniqueExperts) * 100).toFixed(1) : 0}% of experts</div>
+                    </div>
+                    <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl text-center">
+                        <div className="text-2xl font-bold text-blue-400">{goodCount}</div>
+                        <div className="text-sm text-blue-300">Good (80-89%)</div>
+                        <div className="text-xs text-slate-500 mt-1">{uniqueExperts > 0 ? ((goodCount / uniqueExperts) * 100).toFixed(1) : 0}% of experts</div>
+                    </div>
+                    <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-center">
+                        <div className="text-2xl font-bold text-amber-400">{needsImprovementCount}</div>
+                        <div className="text-sm text-amber-300">Needs Work (60-79%)</div>
+                        <div className="text-xs text-slate-500 mt-1">{uniqueExperts > 0 ? ((needsImprovementCount / uniqueExperts) * 100).toFixed(1) : 0}% of experts</div>
+                    </div>
+                    <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-center">
+                        <div className="text-2xl font-bold text-rose-400">{poorCount}</div>
+                        <div className="text-sm text-rose-300">Poor (&lt;60%)</div>
+                        <div className="text-xs text-slate-500 mt-1">{uniqueExperts > 0 ? ((poorCount / uniqueExperts) * 100).toFixed(1) : 0}% of experts</div>
+                    </div>
                 </div>
             </div>
 
@@ -613,101 +846,66 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
                 </div>
             )}
 
-            {/* Expert Consensus Table */}
-            {sortedExpertConsensus.length > 0 && (
-                <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+            {/* Experts Below 80% Consensus - Full List */}
+            {lowPerformingExperts.length > 0 && (
+                <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-rose-500/30 p-6">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-white">Expert Consensus Accuracy</h3>
-                        <span className="text-xs text-slate-500">Click to filter by expert</span>
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-rose-500/20 rounded-xl flex items-center justify-center">
+                                <AlertTriangle className="h-5 w-5 text-rose-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-white">Experts Below 80% Consensus</h3>
+                                <p className="text-sm text-rose-300/70">{lowPerformingExperts.length} experts need attention</p>
+                            </div>
+                        </div>
+                        {lowPerformingExperts.length > 10 && (
+                            <button
+                                onClick={() => setShowAllLowPerformers(!showAllLowPerformers)}
+                                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm text-slate-300 transition-colors"
+                            >
+                                {showAllLowPerformers ? 'Show Less' : `Show All (${lowPerformingExperts.length})`}
+                            </button>
+                        )}
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b border-white/10">
                                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Expert</th>
-                                    <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Attempts</th>
+                                    <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Tasks Attempted</th>
                                     <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Consensus Score</th>
-                                    <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Score Bar</th>
+                                    <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Gap to 80%</th>
+                                    <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {sortedExpertConsensus.map((row, idx) => {
+                                {(showAllLowPerformers ? lowPerformingExperts : lowPerformingExperts.slice(0, 10)).map((row, idx) => {
                                     const isActive = activeFilters?.expert === row.expert_id;
                                     const score = row.Consensus_Score * 100;
+                                    const gap = 80 - score;
                                     return (
                                         <tr
                                             key={idx}
                                             onClick={() => onExpertClick && onExpertClick(row.expert_id)}
-                                            className={`border-b border-white/5 transition-colors cursor-pointer ${isActive ? 'bg-indigo-500/30' : 'hover:bg-indigo-500/20'
-                                                }`}
+                                            className={`border-b border-white/5 transition-colors cursor-pointer ${isActive ? 'bg-rose-500/30' : 'hover:bg-rose-500/10'}`}
                                         >
-                                            <td className="py-3 px-4 text-sm text-white">{row.expert_id}</td>
+                                            <td className="py-3 px-4 text-sm text-white font-mono">{row.expert_id}</td>
                                             <td className="py-3 px-4 text-sm text-slate-300 text-right">{row.attempts}</td>
                                             <td className="py-3 px-4 text-sm text-right">
-                                                <span className={`font-medium ${score >= 80 ? 'text-emerald-400' :
-                                                    score >= 60 ? 'text-amber-400' :
-                                                        'text-rose-400'
-                                                    }`}>
+                                                <span className={`font-medium ${score >= 70 ? 'text-amber-400' : score >= 50 ? 'text-orange-400' : 'text-rose-400'}`}>
                                                     {score.toFixed(1)}%
                                                 </span>
                                             </td>
-                                            <td className="py-3 px-4">
-                                                <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden ml-auto">
-                                                    <div
-                                                        className={`h-full rounded-full ${score >= 80 ? 'bg-emerald-500' :
-                                                            score >= 60 ? 'bg-amber-500' :
-                                                                'bg-rose-500'
-                                                            }`}
-                                                        style={{ width: `${Math.min(score, 100)}%` }}
-                                                    />
-                                                </div>
+                                            <td className="py-3 px-4 text-sm text-right text-rose-400">
+                                                -{gap.toFixed(1)}%
                                             </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {/* Task Consensus Table (Low Consensus Tasks) */}
-            {sortedTaskConsensus.length > 0 && (
-                <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-white">Tasks with Lowest Consensus</h3>
-                        <span className="text-xs text-slate-500">Click to filter by task</span>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-white/10">
-                                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Task ID</th>
-                                    <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Attempts</th>
-                                    <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Overall Consensus</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {sortedTaskConsensus.slice(0, 20).map((row, idx) => {
-                                    const isActive = activeFilters?.taskId === row.task_id;
-                                    const consensus = row.overall_consensus * 100;
-                                    return (
-                                        <tr
-                                            key={idx}
-                                            onClick={() => onTaskClick && onTaskClick(row.task_id)}
-                                            className={`border-b border-white/5 transition-colors cursor-pointer ${isActive ? 'bg-indigo-500/30' : 'hover:bg-indigo-500/20'
-                                                }`}
-                                        >
-                                            <td className="py-3 px-4 text-sm text-white font-mono">
-                                                {row.task_id.length > 30 ? row.task_id.substring(0, 27) + '...' : row.task_id}
-                                            </td>
-                                            <td className="py-3 px-4 text-sm text-slate-300 text-right">{row.attempts}</td>
                                             <td className="py-3 px-4 text-sm text-right">
-                                                <span className={`font-medium ${consensus >= 80 ? 'text-emerald-400' :
-                                                    consensus >= 60 ? 'text-amber-400' :
-                                                        'text-rose-400'
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${score >= 70 ? 'bg-amber-500/20 text-amber-300' :
+                                                    score >= 50 ? 'bg-orange-500/20 text-orange-300' :
+                                                        'bg-rose-500/20 text-rose-300'
                                                     }`}>
-                                                    {consensus.toFixed(1)}%
+                                                    {score >= 70 ? 'Needs Coaching' : score >= 50 ? 'At Risk' : 'Critical'}
                                                 </span>
                                             </td>
                                         </tr>
@@ -716,8 +914,99 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
                             </tbody>
                         </table>
                     </div>
+                    {!showAllLowPerformers && lowPerformingExperts.length > 10 && (
+                        <div className="mt-3 text-center text-sm text-slate-500">
+                            Showing 10 of {lowPerformingExperts.length} low-performing experts
+                        </div>
+                    )}
                 </div>
             )}
+
+            {/* Full Expert Consensus Table */}
+            <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                    <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-semibold text-white">All Expert Consensus Scores</h3>
+                        <span className="text-xs text-slate-500 bg-white/10 px-2 py-1 rounded-full">{filteredExpertConsensus.length} experts</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Search expert..."
+                                value={expertSearch}
+                                onChange={(e) => setExpertSearch(e.target.value)}
+                                className="pl-9 pr-4 py-2 w-48 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                            />
+                        </div>
+                        <span className="text-xs text-slate-500">Click row to filter</span>
+                    </div>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b border-white/10">
+                                <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Expert</th>
+                                <th
+                                    className="text-right py-3 px-4 text-sm font-medium text-slate-400 cursor-pointer hover:text-white"
+                                    onClick={() => handleExpertSort('attempts')}
+                                >
+                                    Tasks {expertSortConfig.key === 'attempts' && (expertSortConfig.direction === 'desc' ? '↓' : '↑')}
+                                </th>
+                                <th
+                                    className="text-right py-3 px-4 text-sm font-medium text-slate-400 cursor-pointer hover:text-white"
+                                    onClick={() => handleExpertSort('Consensus_Score')}
+                                >
+                                    Consensus Score {expertSortConfig.key === 'Consensus_Score' && (expertSortConfig.direction === 'desc' ? '↓' : '↑')}
+                                </th>
+                                <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Performance</th>
+                                <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Score Bar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredExpertConsensus.slice(0, 100).map((row, idx) => {
+                                const isActive = activeFilters?.expert === row.expert_id;
+                                const score = row.Consensus_Score * 100;
+                                const tier = score >= 90 ? 'Excellent' : score >= 80 ? 'Good' : score >= 60 ? 'Needs Work' : 'Poor';
+                                const tierColor = score >= 90 ? 'text-emerald-400' : score >= 80 ? 'text-blue-400' : score >= 60 ? 'text-amber-400' : 'text-rose-400';
+                                const barColor = score >= 90 ? 'bg-emerald-500' : score >= 80 ? 'bg-blue-500' : score >= 60 ? 'bg-amber-500' : 'bg-rose-500';
+                                return (
+                                    <tr
+                                        key={idx}
+                                        onClick={() => onExpertClick && onExpertClick(row.expert_id)}
+                                        className={`border-b border-white/5 transition-colors cursor-pointer ${isActive ? 'bg-indigo-500/30' : 'hover:bg-indigo-500/20'}`}
+                                    >
+                                        <td className="py-3 px-4 text-sm text-white font-mono">{row.expert_id}</td>
+                                        <td className="py-3 px-4 text-sm text-slate-300 text-right">{row.attempts}</td>
+                                        <td className="py-3 px-4 text-sm text-right">
+                                            <span className={`font-semibold ${tierColor}`}>
+                                                {score.toFixed(1)}%
+                                            </span>
+                                        </td>
+                                        <td className="py-3 px-4 text-sm text-right">
+                                            <span className={tierColor}>{tier}</span>
+                                        </td>
+                                        <td className="py-3 px-4">
+                                            <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden ml-auto">
+                                                <div
+                                                    className={`h-full rounded-full ${barColor}`}
+                                                    style={{ width: `${Math.min(score, 100)}%` }}
+                                                />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                {filteredExpertConsensus.length > 100 && (
+                    <div className="mt-3 text-center text-sm text-slate-500">
+                        Showing first 100 of {filteredExpertConsensus.length} experts
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
@@ -4057,6 +4346,13 @@ export default function QADashboardGenerator() {
         };
     }, [rawData, config]);
 
+    // Helper to detect consensus-only mode
+    const isConsensusOnlyMode = useMemo(() => {
+        return config?.metricNeeds?.consensus &&
+            !config?.metricNeeds?.approval &&
+            !config?.metricNeeds?.quality;
+    }, [config]);
+
     // Consensus metrics
     // Base consensus metrics (from full dataset - used as "ground truth")
     const baseConsensusMetrics = useMemo(() => {
@@ -4361,9 +4657,10 @@ export default function QADashboardGenerator() {
                     />
 
                     {/* Metrics */}
+                    {/* Metrics */}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                         <MetricCard title="Total Records" value={metrics.total.toLocaleString()} subtitle={`${metrics.excluded} excluded`} icon={FileSpreadsheet} color="indigo" />
-                        {(config.metricNeeds?.approval || config.scoreColumn) && (
+                        {!isConsensusOnlyMode && (config.metricNeeds?.approval || config.scoreColumn) && (
                             <MetricCard
                                 title="Approval Rate"
                                 value={`${metrics.approvalRate.toFixed(1)}%`}
@@ -4372,7 +4669,7 @@ export default function QADashboardGenerator() {
                                 color="emerald"
                             />
                         )}
-                        {(config.metricNeeds?.approval || config.scoreColumn) && (
+                        {!isConsensusOnlyMode && (config.metricNeeds?.approval || config.scoreColumn) && (
                             <MetricCard
                                 title="Defect Rate"
                                 value={`${metrics.defectRate.toFixed(1)}%`}
@@ -4388,10 +4685,10 @@ export default function QADashboardGenerator() {
                             icon={Users}
                             color="cyan"
                         />
-                        {config.metricNeeds?.quality && metrics.avgQuality !== null && (
+                        {!isConsensusOnlyMode && config.metricNeeds?.quality && metrics.avgQuality !== null && (
                             <MetricCard title="Avg Quality" value={`${metrics.avgQuality.toFixed(1)}%`} subtitle="across dimensions" icon={Award} color="amber" />
                         )}
-                        {config.metricNeeds?.quality && metrics.qualityApprovalCorrelation !== null && (
+                        {!isConsensusOnlyMode && config.metricNeeds?.quality && metrics.qualityApprovalCorrelation !== null && (
                             <MetricCard title="Quality vs Approval" value={metrics.qualityApprovalCorrelation.toFixed(2)} subtitle="correlation (r)" icon={Activity} color="rose" />
                         )}
                     </div>
@@ -4414,7 +4711,7 @@ export default function QADashboardGenerator() {
 
                     {/* Charts */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {(config.metricNeeds?.approval || config.metricNeeds?.quality || config.scoreColumn) && statusDistribution.length > 0 && (
+                        {!isConsensusOnlyMode && (config.metricNeeds?.approval || config.metricNeeds?.quality || config.scoreColumn) && statusDistribution.length > 0 && (
                             <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
                                 <h3 className="text-lg font-semibold text-white mb-4">Status Distribution</h3>
                                 <ResponsiveContainer width="100%" height={280}>
@@ -4452,7 +4749,7 @@ export default function QADashboardGenerator() {
                             </div>
                         )}
 
-                        {trendData.length > 0 && (config.metricNeeds?.approval || config.metricNeeds?.quality || config.scoreColumn) && (
+                        {!isConsensusOnlyMode && trendData.length > 0 && (config.metricNeeds?.approval || config.metricNeeds?.quality || config.scoreColumn) && (
                             <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
                                 <h3 className="text-lg font-semibold text-white mb-4">Submissions Over Time</h3>
                                 <ResponsiveContainer width="100%" height={280}>
@@ -4510,7 +4807,7 @@ export default function QADashboardGenerator() {
                         )}
                     </div>
 
-                    {qualityTrend.length > 0 && (config.metricNeeds?.quality) && (
+                    {!isConsensusOnlyMode && qualityTrend.length > 0 && (config.metricNeeds?.quality) && (
                         <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
                             <h3 className="text-lg font-semibold text-white mb-4">Quality Over Time</h3>
                             <ResponsiveContainer width="100%" height={280}>
@@ -4563,7 +4860,7 @@ export default function QADashboardGenerator() {
                     )}
 
                     {/* Tables */}
-                    {config.showTables.expert && expertPerformance.length > 0 && (
+                    {!isConsensusOnlyMode && config.showTables.expert && expertPerformance.length > 0 && (
                         <DataTable
                             data={expertPerformance}
                             title="Expert Performance"
@@ -4583,7 +4880,7 @@ export default function QADashboardGenerator() {
                             activeValue={activeFilters.category}
                         />
                     )}
-                    {config.showTables.reviewer && reviewerStats.length > 0 && (
+                    {!isConsensusOnlyMode && config.showTables.reviewer && reviewerStats.length > 0 && (
                         <DataTable
                             data={reviewerStats}
                             title="Reviewer Statistics"
