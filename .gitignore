@@ -27,7 +27,9 @@ yarn-error.log*
 
 # Large video files - too large for GitHub
 /videos/
-/public/videos/
+# Allow the demo video in public folder (it's compressed)
+!/public/videos/demo.mp4
 *.mp4
+!public/videos/demo.mp4
 *.mov
 *.avi
