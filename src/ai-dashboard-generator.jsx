@@ -760,6 +760,35 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
     const [expertCurrentPage, setExpertCurrentPage] = useState(1);
     const [expertRowsPerPage, setExpertRowsPerPage] = useState(25);
 
+    // Reset to page 1 when search or rows per page changes
+    useEffect(() => {
+        setExpertCurrentPage(1);
+    }, [expertSearch, expertRowsPerPage]);
+
+    // Compute filtered and paginated data - must be before early return (Rules of Hooks)
+    const filteredExpertConsensus = useMemo(() => {
+        if (!consensusMetrics) return [];
+        const { expertConsensus } = consensusMetrics;
+        const sortedExpertConsensus = [...expertConsensus].sort((a, b) => {
+            const aVal = expertSortConfig.key === 'Consensus_Score' ? a.Consensus_Score : a.attempts;
+            const bVal = expertSortConfig.key === 'Consensus_Score' ? b.Consensus_Score : b.attempts;
+            return expertSortConfig.direction === 'desc' ? bVal - aVal : aVal - bVal;
+        });
+        return expertSearch
+            ? sortedExpertConsensus.filter(e => e.expert_id.toLowerCase().includes(expertSearch.toLowerCase()))
+            : sortedExpertConsensus;
+    }, [consensusMetrics, expertSortConfig, expertSearch]);
+
+    const expertTotalPages = useMemo(() => {
+        return Math.ceil(filteredExpertConsensus.length / expertRowsPerPage);
+    }, [filteredExpertConsensus.length, expertRowsPerPage]);
+
+    const paginatedExpertConsensus = useMemo(() => {
+        const start = (expertCurrentPage - 1) * expertRowsPerPage;
+        return filteredExpertConsensus.slice(start, start + expertRowsPerPage);
+    }, [filteredExpertConsensus, expertCurrentPage, expertRowsPerPage]);
+
+    // Early return AFTER all hooks
     if (!consensusMetrics) return null;
 
     const { taskConsensus, expertConsensus, questionStats, projectConsensus, consensusDisagreementRate, uniqueTasks, uniqueExperts, avgAttemptsPerTask } = consensusMetrics;
@@ -771,30 +800,6 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
         consensus: parseFloat((q.consensus * 100).toFixed(1)),
         disagreement: parseFloat((q.consensus_disagreement_rate * 100).toFixed(1))
     }));
-
-    // Sort expert consensus
-    const sortedExpertConsensus = [...expertConsensus].sort((a, b) => {
-        const aVal = expertSortConfig.key === 'Consensus_Score' ? a.Consensus_Score : a.attempts;
-        const bVal = expertSortConfig.key === 'Consensus_Score' ? b.Consensus_Score : b.attempts;
-        return expertSortConfig.direction === 'desc' ? bVal - aVal : aVal - bVal;
-    });
-
-    // Filter by search
-    const filteredExpertConsensus = expertSearch
-        ? sortedExpertConsensus.filter(e => e.expert_id.toLowerCase().includes(expertSearch.toLowerCase()))
-        : sortedExpertConsensus;
-
-    // Paginate filtered expert consensus
-    const expertTotalPages = Math.ceil(filteredExpertConsensus.length / expertRowsPerPage);
-    const paginatedExpertConsensus = useMemo(() => {
-        const start = (expertCurrentPage - 1) * expertRowsPerPage;
-        return filteredExpertConsensus.slice(start, start + expertRowsPerPage);
-    }, [filteredExpertConsensus, expertCurrentPage, expertRowsPerPage]);
-
-    // Reset to page 1 when search or rows per page changes
-    useEffect(() => {
-        setExpertCurrentPage(1);
-    }, [expertSearch, expertRowsPerPage]);
 
     // Experts below 80% consensus (low performers)
     const lowPerformingExperts = expertConsensus
