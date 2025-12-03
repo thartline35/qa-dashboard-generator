@@ -1,0 +1,109 @@
+name: Production Deployment Check
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  production-checks:
+    name: Production Deployment Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run all linting checks
+        run: |
+          echo "🔍 Running ESLint..."
+          npx eslint src/ --ext .js,.jsx --max-warnings 0 || {
+            echo "❌ ESLint found errors. Please fix them before deploying."
+            exit 1
+          }
+          echo "✅ ESLint passed!"
+
+      - name: Run test suite
+        run: |
+          echo "🧪 Running tests..."
+          npm test -- --watchAll=false --coverage --passWithNoTests || {
+            echo "❌ Tests failed. Please fix them before deploying."
+            exit 1
+          }
+          echo "✅ Tests passed!"
+
+      - name: Build for production
+        run: |
+          echo "🏗️ Building for production..."
+          npm run build || {
+            echo "❌ Build failed. Please fix build errors before deploying."
+            exit 1
+          }
+          echo "✅ Build successful!"
+
+      - name: Verify production build
+        run: |
+          echo "🔍 Verifying production build..."
+          if [ ! -d "build" ]; then
+            echo "❌ Build directory not found!"
+            exit 1
+          fi
+          
+          # Check for common issues
+          if find build/ -name "*.map" | head -1 | grep -q .; then
+            echo "⚠️ Source maps found (this is expected for production)"
+          fi
+          
+          # Check build size
+          BUILD_SIZE=$(du -sh build/ | cut -f1)
+          echo "📦 Build size: $BUILD_SIZE"
+          
+          echo "✅ Production build verified!"
+
+      - name: Check for security issues
+        run: |
+          echo "🔒 Checking for known security vulnerabilities..."
+          npm audit --audit-level=moderate || {
+            echo "⚠️ Security vulnerabilities found. Review before deployment."
+            exit 1
+          }
+          echo "✅ Security check passed!"
+
+      - name: Production readiness summary
+        if: success()
+        run: |
+          echo "================================================"
+          echo "✅ ALL PRODUCTION CHECKS PASSED ✅"
+          echo "================================================"
+          echo "✅ Linting: Passed"
+          echo "✅ Tests: Passed"
+          echo "✅ Build: Passed"
+          echo "✅ Security: Passed"
+          echo "================================================"
+          echo "🚀 Ready for production deployment!"
+          echo "================================================"
+
+      - name: Production readiness summary (failed)
+        if: failure()
+        run: |
+          echo "================================================"
+          echo "❌ PRODUCTION CHECKS FAILED ❌"
+          echo "================================================"
+          echo "Please fix all errors before deploying to production."
+          echo "================================================"
+          exit 1
+

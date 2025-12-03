@@ -1,0 +1,122 @@
+name: CI Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  lint:
+    name: Lint Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npx eslint src/ --ext .js,.jsx --max-warnings 0
+        continue-on-error: false
+
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test -- --watchAll=false --coverage
+        env:
+          CI: true
+
+  build:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+        env:
+          CI: true
+
+      - name: Check build output
+        run: |
+          if [ ! -d "build" ]; then
+            echo "Build directory not found!"
+            exit 1
+          fi
+          echo "Build successful! Build directory size:"
+          du -sh build/
+
+  verify:
+    name: Production Readiness Check
+    runs-on: ubuntu-latest
+    needs: [lint, test, build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify no console errors in build
+        run: |
+          npm run build
+          if grep -r "console.error\|console.warn" build/ --include="*.js" | grep -v "webpack"; then
+            echo "Warning: Console errors/warnings found in production build"
+            exit 1
+          fi
+
+      - name: Check file sizes
+        run: |
+          echo "Checking for large files that might affect deployment..."
+          find build/ -type f -size +1M -exec ls -lh {} \;
+
+      - name: Production readiness passed
+        run: |
+          echo "✅ All production readiness checks passed!"
+          echo "✅ Linting: Passed"
+          echo "✅ Tests: Passed"
+          echo "✅ Build: Passed"
+          echo "✅ Production verification: Passed"
+
