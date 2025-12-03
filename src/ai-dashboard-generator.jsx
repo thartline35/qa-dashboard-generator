@@ -758,10 +758,22 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
     const [expertCurrentPage, setExpertCurrentPage] = useState(1);
     const [expertRowsPerPage, setExpertRowsPerPage] = useState(25);
 
+    // State for low consensus tasks table
+    const [showAllLowTasks, setShowAllLowTasks] = useState(false);
+    const [taskSortConfig, setTaskSortConfig] = useState({ key: 'overall_consensus', direction: 'asc' });
+    const [taskSearch, setTaskSearch] = useState('');
+    const [taskCurrentPage, setTaskCurrentPage] = useState(1);
+    const [taskRowsPerPage, setTaskRowsPerPage] = useState(25);
+
     // Reset to page 1 when search or rows per page changes
     useEffect(() => {
         setExpertCurrentPage(1);
     }, [expertSearch, expertRowsPerPage]);
+
+    // Reset task page when search/rows changes
+    useEffect(() => {
+        setTaskCurrentPage(1);
+    }, [taskSearch, taskRowsPerPage]);
 
     // Compute filtered and paginated data - must be before early return (Rules of Hooks)
     const filteredExpertConsensus = useMemo(() => {
@@ -785,6 +797,56 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
         const start = (expertCurrentPage - 1) * expertRowsPerPage;
         return filteredExpertConsensus.slice(start, start + expertRowsPerPage);
     }, [filteredExpertConsensus, expertCurrentPage, expertRowsPerPage]);
+
+    // Compute low consensus tasks - tasks below 80% consensus
+    const lowConsensusTasks = useMemo(() => {
+        if (!consensusMetrics?.taskConsensus) return [];
+        return consensusMetrics.taskConsensus
+            .filter(t => t.overall_consensus < 0.8)
+            .sort((a, b) => a.overall_consensus - b.overall_consensus);
+    }, [consensusMetrics]);
+
+    // Filter and sort low consensus tasks
+    const filteredLowTasks = useMemo(() => {
+        let tasks = [...lowConsensusTasks];
+        
+        // Apply search filter
+        if (taskSearch) {
+            tasks = tasks.filter(t => 
+                t.task_id.toLowerCase().includes(taskSearch.toLowerCase())
+            );
+        }
+        
+        // Apply sorting
+        tasks.sort((a, b) => {
+            let aVal, bVal;
+            switch (taskSortConfig.key) {
+                case 'overall_consensus':
+                    aVal = a.overall_consensus;
+                    bVal = b.overall_consensus;
+                    break;
+                case 'attempts':
+                    aVal = a.attempts;
+                    bVal = b.attempts;
+                    break;
+                default:
+                    aVal = a.overall_consensus;
+                    bVal = b.overall_consensus;
+            }
+            return taskSortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+        });
+        
+        return tasks;
+    }, [lowConsensusTasks, taskSearch, taskSortConfig]);
+
+    const taskTotalPages = useMemo(() => {
+        return Math.ceil(filteredLowTasks.length / taskRowsPerPage);
+    }, [filteredLowTasks.length, taskRowsPerPage]);
+
+    const paginatedLowTasks = useMemo(() => {
+        const start = (taskCurrentPage - 1) * taskRowsPerPage;
+        return filteredLowTasks.slice(start, start + taskRowsPerPage);
+    }, [filteredLowTasks, taskCurrentPage, taskRowsPerPage]);
 
     // Early return AFTER all hooks
     if (!consensusMetrics) return null;
@@ -814,6 +876,13 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
         setExpertSortConfig(prev => ({
             key,
             direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
+        }));
+    };
+
+    const handleTaskSort = (key) => {
+        setTaskSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
         }));
     };
 
@@ -963,6 +1032,141 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
                     {!showAllLowPerformers && lowPerformingExperts.length > 10 && (
                         <div className="mt-3 text-center text-sm text-slate-500">
                             Showing 10 of {lowPerformingExperts.length} low-performing experts
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Tasks Below 80% Consensus */}
+            {lowConsensusTasks.length > 0 && (
+                <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-amber-500/30 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center">
+                                <AlertTriangle className="h-5 w-5 text-amber-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-white">Tasks Below 80% Consensus</h3>
+                                <p className="text-sm text-amber-300/70">{lowConsensusTasks.length} tasks need attention</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search task..."
+                                    value={taskSearch}
+                                    onChange={(e) => setTaskSearch(e.target.value)}
+                                    className="pl-9 pr-4 py-2 w-48 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                                />
+                            </div>
+                            {lowConsensusTasks.length > 10 && (
+                                <button
+                                    onClick={() => setShowAllLowTasks(!showAllLowTasks)}
+                                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm text-slate-300 transition-colors"
+                                >
+                                    {showAllLowTasks ? 'Show Less' : `Show All (${lowConsensusTasks.length})`}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b border-white/10">
+                                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Task ID</th>
+                                    <th
+                                        className="text-right py-3 px-4 text-sm font-medium text-slate-400 cursor-pointer hover:text-white"
+                                        onClick={() => handleTaskSort('attempts')}
+                                    >
+                                        Attempts {taskSortConfig.key === 'attempts' && (taskSortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    </th>
+                                    <th
+                                        className="text-right py-3 px-4 text-sm font-medium text-slate-400 cursor-pointer hover:text-white"
+                                        onClick={() => handleTaskSort('overall_consensus')}
+                                    >
+                                        Consensus % {taskSortConfig.key === 'overall_consensus' && (taskSortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    </th>
+                                    <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Gap to 80%</th>
+                                    <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {(showAllLowTasks ? paginatedLowTasks : filteredLowTasks.slice(0, 10)).map((task, idx) => {
+                                    const isActive = activeFilters?.taskId === task.task_id;
+                                    const score = task.overall_consensus * 100;
+                                    const gap = 80 - score;
+                                    return (
+                                        <tr
+                                            key={idx}
+                                            onClick={() => onTaskClick && onTaskClick(task.task_id)}
+                                            className={`border-b border-white/5 transition-colors cursor-pointer ${isActive ? 'bg-amber-500/30' : 'hover:bg-amber-500/10'}`}
+                                        >
+                                            <td className="py-3 px-4 text-sm text-white font-mono">
+                                                {task.task_id.length > 25 ? task.task_id.substring(0, 22) + '...' : task.task_id}
+                                            </td>
+                                            <td className="py-3 px-4 text-sm text-slate-300 text-right">{task.attempts}</td>
+                                            <td className="py-3 px-4 text-sm text-right">
+                                                <span className={`font-medium ${score >= 70 ? 'text-amber-400' : score >= 50 ? 'text-orange-400' : 'text-rose-400'}`}>
+                                                    {score.toFixed(1)}%
+                                                </span>
+                                            </td>
+                                            <td className="py-3 px-4 text-sm text-right text-rose-400">
+                                                -{gap.toFixed(1)}%
+                                            </td>
+                                            <td className="py-3 px-4 text-sm text-right">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${score >= 70 ? 'bg-amber-500/20 text-amber-300' :
+                                                    score >= 50 ? 'bg-orange-500/20 text-orange-300' :
+                                                        'bg-rose-500/20 text-rose-300'
+                                                    }`}>
+                                                    {score >= 70 ? 'Review Needed' : score >= 50 ? 'High Priority' : 'Critical'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                    {!showAllLowTasks && lowConsensusTasks.length > 10 && (
+                        <div className="mt-3 text-center text-sm text-slate-500">
+                            Showing 10 of {lowConsensusTasks.length} low-consensus tasks
+                        </div>
+                    )}
+                    {showAllLowTasks && taskTotalPages > 1 && (
+                        <div className="px-6 py-3 bg-white/5 border-t border-white/10 flex justify-between items-center flex-wrap gap-3 mt-4 rounded-b-xl">
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm text-slate-400">Page {taskCurrentPage} of {taskTotalPages}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-slate-400">Rows per page:</span>
+                                    <select
+                                        value={taskRowsPerPage}
+                                        onChange={(e) => setTaskRowsPerPage(Number(e.target.value))}
+                                        className="px-3 py-1 bg-white/10 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                                    >
+                                        {[25, 50, 75, 100, 200, 500].map(size => (
+                                            <option key={size} value={size} className="bg-slate-800">{size}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setTaskCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={taskCurrentPage === 1}
+                                    className="px-3 py-1 bg-white/10 rounded-lg text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors"
+                                >
+                                    Previous
+                                </button>
+                                <button
+                                    onClick={() => setTaskCurrentPage(p => Math.min(taskTotalPages, p + 1))}
+                                    disabled={taskCurrentPage === taskTotalPages}
+                                    className="px-3 py-1 bg-white/10 rounded-lg text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors"
+                                >
+                                    Next
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
