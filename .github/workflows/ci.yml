@@ -6,9 +6,6 @@ on:
       - main
       - master
   push:
-    branches:
-      - main
-      - master
 
 jobs:
   lint:
