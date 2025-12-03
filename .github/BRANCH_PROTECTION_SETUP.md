@@ -42,9 +42,10 @@ Enable the following settings:
 
 #### Additional Protection (Recommended)
 
-- ✅ **"Require pull request reviews before merging"**
-  - Required approving reviews: `1`
+- ⚠️ **"Require pull request reviews before merging"** (optional)
+  - Required approving reviews: `1` (or `0` if you're working solo)
   - Dismiss stale pull request approvals when new commits are pushed: `✅`
+  - **Note:** If you're the only contributor, you can set this to `0` to allow merging your own PRs
   
 - ✅ **"Require linear history"** (optional, for cleaner git history)
 

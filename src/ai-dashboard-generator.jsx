@@ -5363,6 +5363,114 @@ export default function QADashboardGenerator() {
                         </div>
                     )}
 
+                    {/* Expert Detailed View */}
+                    {activeFilters.expert && filteredData && (
+                        <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <div>
+                                    <h3 className="text-xl font-semibold text-white mb-1">
+                                        Expert Details: {activeFilters.expert}
+                                    </h3>
+                                    <p className="text-sm text-slate-400">
+                                        {filteredData.length} task submission{filteredData.length !== 1 ? 's' : ''}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => clearFilter('expert')}
+                                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-white/10 rounded-lg text-sm text-slate-300 hover:text-white transition-colors"
+                                >
+                                    <X className="h-4 w-4" />
+                                    Close
+                                </button>
+                            </div>
+                            
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="border-b border-white/10">
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Task ID</th>
+                                            {config.metricNeeds?.consensus && config.scoreColumn && (
+                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Score</th>
+                                            )}
+                                            {!isConsensusOnlyMode && (
+                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                                            )}
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Date</th>
+                                            {config.categoryColumn && (
+                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Category</th>
+                                            )}
+                                            {config.reviewerColumn && (
+                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Reviewer</th>
+                                            )}
+                                            {config.metricNeeds?.quality && (
+                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Quality Score</th>
+                                            )}
+                                            {config.taskLinkColumn && (
+                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Task Link</th>
+                                            )}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {filteredData.map((row, idx) => {
+                                            const statusDisplay = row.status === 'pass' ? 'Strong Pass' : row.status === 'minor' ? 'Weak Pass' : row.status === 'fail' ? 'Fail' : row.status || 'N/A';
+                                            const statusColor = row.status === 'pass' ? 'text-emerald-400' : row.status === 'minor' ? 'text-amber-400' : row.status === 'fail' ? 'text-rose-400' : 'text-slate-400';
+                                            const dateDisplay = row.date ? new Date(row.date).toLocaleDateString() : 'N/A';
+                                            
+                                            return (
+                                                <tr key={idx} className="hover:bg-white/5 transition-colors">
+                                                    <td className="px-4 py-3 text-sm text-slate-300">{row.taskId || 'N/A'}</td>
+                                                    {config.metricNeeds?.consensus && config.scoreColumn && (
+                                                        <td className="px-4 py-3 text-sm text-slate-300">{row.score || 'N/A'}</td>
+                                                    )}
+                                                    {!isConsensusOnlyMode && (
+                                                        <td className={`px-4 py-3 text-sm font-medium ${statusColor}`}>{statusDisplay}</td>
+                                                    )}
+                                                    <td className="px-4 py-3 text-sm text-slate-300">{dateDisplay}</td>
+                                                    {config.categoryColumn && (
+                                                        <td className="px-4 py-3 text-sm text-slate-300">{row.category || 'N/A'}</td>
+                                                    )}
+                                                    {config.reviewerColumn && (
+                                                        <td className="px-4 py-3 text-sm text-slate-300">{row.reviewer || 'N/A'}</td>
+                                                    )}
+                                                    {config.metricNeeds?.quality && (
+                                                        <td className="px-4 py-3 text-sm text-slate-300">
+                                                            {row.qualityScore !== null && row.qualityScore !== undefined 
+                                                                ? `${row.qualityScore.toFixed(1)}%` 
+                                                                : 'N/A'}
+                                                        </td>
+                                                    )}
+                                                    {config.taskLinkColumn && (
+                                                        <td className="px-4 py-3 text-sm">
+                                                            {row.taskLink ? (
+                                                                <a 
+                                                                    href={row.taskLink} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                                                                >
+                                                                    <ExternalLink className="h-3 w-3" />
+                                                                    Open
+                                                                </a>
+                                                            ) : (
+                                                                <span className="text-slate-500">N/A</span>
+                                                            )}
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            {filteredData.length === 0 && (
+                                <div className="text-center py-8 text-slate-400">
+                                    No task submissions found for this expert.
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Tables */}
                     {!isConsensusOnlyMode && config.showTables.expert && expertPerformance.length > 0 && (
                         <DataTable
