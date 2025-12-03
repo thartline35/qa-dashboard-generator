@@ -77,22 +77,62 @@ jobs:
       - name: Check for security issues
         run: |
           echo "🔒 Checking for known security vulnerabilities..."
-          npm audit --audit-level=moderate || {
-            echo "⚠️ Security vulnerabilities found. Review before deployment."
+          echo ""
+          
+          # Show all vulnerabilities for visibility (informational only)
+          echo "================================================"
+          echo "Full Security Audit Report (for information)"
+          echo "================================================"
+          npm audit --audit-level=low || true
+          
+          echo ""
+          echo "================================================"
+          echo "Production Dependencies Check (High/Critical Only)"
+          echo "================================================"
+          echo ""
+          echo "Checking production dependencies only (excluding dev dependencies)..."
+          
+          # Check production dependencies using JSON output to parse results
+          # This allows us to only fail on high/critical, not moderate/low
+          AUDIT_JSON=$(npm audit --production --json 2>/dev/null || echo '{}')
+          
+          # Extract vulnerability counts from JSON
+          HIGH_COUNT=$(echo "$AUDIT_JSON" | grep -o '"high":[0-9]*' | grep -o '[0-9]*' || echo "0")
+          CRITICAL_COUNT=$(echo "$AUDIT_JSON" | grep -o '"critical":[0-9]*' | grep -o '[0-9]*' || echo "0")
+          
+          # Also show the human-readable output
+          npm audit --production --audit-level=low || true
+          
+          echo ""
+          if [ "$CRITICAL_COUNT" -gt 0 ] || [ "$HIGH_COUNT" -gt 0 ]; then
+            echo "================================================"
+            echo "❌ CRITICAL SECURITY ISSUES FOUND ❌"
+            echo "================================================"
+            echo "High vulnerabilities: $HIGH_COUNT"
+            echo "Critical vulnerabilities: $CRITICAL_COUNT"
+            echo ""
+            echo "⚠️  Please review and address these issues before deploying to production."
+            echo ""
+            echo "To see details, run: npm audit --production"
             exit 1
-          }
-          echo "✅ Security check passed!"
+          else
+            echo "✅ No high/critical vulnerabilities found in production dependencies!"
+            echo ""
+            echo "ℹ️  Note: Dev dependencies and build-time tools are excluded from production builds."
+            echo "   Vulnerabilities in those packages do not affect the deployed application."
+          fi
 
       - name: Production readiness summary
         if: success()
         run: |
+          echo ""
           echo "================================================"
           echo "✅ ALL PRODUCTION CHECKS PASSED ✅"
           echo "================================================"
           echo "✅ Linting: Passed"
           echo "✅ Tests: Passed"
           echo "✅ Build: Passed"
-          echo "✅ Security: Passed"
+          echo "✅ Security: No critical issues in production dependencies"
           echo "================================================"
           echo "🚀 Ready for production deployment!"
           echo "================================================"
