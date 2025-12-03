@@ -757,6 +757,8 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
     const [expertSearch, setExpertSearch] = useState('');
     const [expertCurrentPage, setExpertCurrentPage] = useState(1);
     const [expertRowsPerPage, setExpertRowsPerPage] = useState(25);
+    const [lowPerformerCurrentPage, setLowPerformerCurrentPage] = useState(1);
+    const [lowPerformerRowsPerPage, setLowPerformerRowsPerPage] = useState(25);
 
     // State for low consensus tasks table
     const [showAllLowTasks, setShowAllLowTasks] = useState(false);
@@ -769,6 +771,11 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
     useEffect(() => {
         setExpertCurrentPage(1);
     }, [expertSearch, expertRowsPerPage]);
+
+    // Reset low performer page when rows per page changes
+    useEffect(() => {
+        setLowPerformerCurrentPage(1);
+    }, [lowPerformerRowsPerPage]);
 
     // Reset task page when search/rows changes
     useEffect(() => {
@@ -798,11 +805,29 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
         return filteredExpertConsensus.slice(start, start + expertRowsPerPage);
     }, [filteredExpertConsensus, expertCurrentPage, expertRowsPerPage]);
 
-    // Compute low consensus tasks - tasks below 80% consensus
+    // Compute low performing experts - must be before early return (Rules of Hooks)
+    const lowPerformingExperts = useMemo(() => {
+        if (!consensusMetrics) return [];
+        const { expertConsensus } = consensusMetrics;
+        return expertConsensus
+            .filter(e => e.Consensus_Score <= 0.8)
+            .sort((a, b) => a.Consensus_Score - b.Consensus_Score);
+    }, [consensusMetrics]);
+
+    const lowPerformerTotalPages = useMemo(() => {
+        return Math.ceil(lowPerformingExperts.length / lowPerformerRowsPerPage);
+    }, [lowPerformingExperts.length, lowPerformerRowsPerPage]);
+
+    const paginatedLowPerformers = useMemo(() => {
+        const start = (lowPerformerCurrentPage - 1) * lowPerformerRowsPerPage;
+        return lowPerformingExperts.slice(start, start + lowPerformerRowsPerPage);
+    }, [lowPerformingExperts, lowPerformerCurrentPage, lowPerformerRowsPerPage]);
+
+    // Compute low consensus tasks - tasks below or equal to 80% consensus
     const lowConsensusTasks = useMemo(() => {
         if (!consensusMetrics?.taskConsensus) return [];
         return consensusMetrics.taskConsensus
-            .filter(t => t.overall_consensus < 0.8)
+            .filter(t => t.overall_consensus <= 0.8)
             .sort((a, b) => a.overall_consensus - b.overall_consensus);
     }, [consensusMetrics]);
 
@@ -861,16 +886,12 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
         disagreement: parseFloat((q.consensus_disagreement_rate * 100).toFixed(1))
     }));
 
-    // Experts below 80% consensus (low performers)
-    const lowPerformingExperts = expertConsensus
-        .filter(e => e.Consensus_Score < 0.8)
-        .sort((a, b) => a.Consensus_Score - b.Consensus_Score);
 
-    // Calculate performance tiers
+    // Calculate performance tiers (all inclusive boundaries)
     const excellentCount = expertConsensus.filter(e => e.Consensus_Score >= 0.9).length;
     const goodCount = expertConsensus.filter(e => e.Consensus_Score >= 0.8 && e.Consensus_Score < 0.9).length;
     const needsImprovementCount = expertConsensus.filter(e => e.Consensus_Score >= 0.6 && e.Consensus_Score < 0.8).length;
-    const poorCount = expertConsensus.filter(e => e.Consensus_Score < 0.6).length;
+    const poorCount = expertConsensus.filter(e => e.Consensus_Score <= 0.6).length;
 
     const handleExpertSort = (key) => {
         setExpertSortConfig(prev => ({
@@ -995,7 +1016,7 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
                                 </tr>
                             </thead>
                             <tbody>
-                                {(showAllLowPerformers ? lowPerformingExperts : lowPerformingExperts.slice(0, 10)).map((row, idx) => {
+                                {(showAllLowPerformers ? paginatedLowPerformers : lowPerformingExperts.slice(0, 10)).map((row, idx) => {
                                     const isActive = activeFilters?.expert === row.expert_id;
                                     const score = row.Consensus_Score * 100;
                                     const gap = 80 - score;
@@ -1032,6 +1053,41 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
                     {!showAllLowPerformers && lowPerformingExperts.length > 10 && (
                         <div className="mt-3 text-center text-sm text-slate-500">
                             Showing 10 of {lowPerformingExperts.length} low-performing experts
+                        </div>
+                    )}
+                    {showAllLowPerformers && (lowPerformerTotalPages > 1 || lowPerformingExperts.length > 25) && (
+                        <div className="px-6 py-3 bg-white/5 border-t border-white/10 flex justify-between items-center flex-wrap gap-3 mt-4 rounded-b-xl">
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm text-slate-400">Page {lowPerformerCurrentPage} of {lowPerformerTotalPages}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-slate-400">Rows per page:</span>
+                                    <select
+                                        value={lowPerformerRowsPerPage}
+                                        onChange={(e) => setLowPerformerRowsPerPage(Number(e.target.value))}
+                                        className="pl-3 pr-8 py-1 bg-white/10 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-rose-500/50 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M6%209l6%206%206-6%22/%3E%3C/svg%3E')] bg-no-repeat bg-[length:16px_16px] bg-[right_0.5rem_center]"
+                                    >
+                                        {[25, 50, 75, 100, 200, 500].map(size => (
+                                            <option key={size} value={size} className="bg-slate-800">{size}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setLowPerformerCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={lowPerformerCurrentPage === 1}
+                                    className="px-3 py-1 bg-white/10 rounded-lg text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors"
+                                >
+                                    Previous
+                                </button>
+                                <button
+                                    onClick={() => setLowPerformerCurrentPage(p => Math.min(lowPerformerTotalPages, p + 1))}
+                                    disabled={lowPerformerCurrentPage === lowPerformerTotalPages}
+                                    className="px-3 py-1 bg-white/10 rounded-lg text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors"
+                                >
+                                    Next
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -1143,7 +1199,7 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
                                     <select
                                         value={taskRowsPerPage}
                                         onChange={(e) => setTaskRowsPerPage(Number(e.target.value))}
-                                        className="px-3 py-1 bg-white/10 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                                        className="pl-3 pr-8 py-1 bg-white/10 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M6%209l6%206%206-6%22/%3E%3C/svg%3E')] bg-no-repeat bg-[length:16px_16px] bg-[right_0.5rem_center]"
                                     >
                                         {[25, 50, 75, 100, 200, 500].map(size => (
                                             <option key={size} value={size} className="bg-slate-800">{size}</option>
@@ -1260,7 +1316,7 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
                                 <select
                                     value={expertRowsPerPage}
                                     onChange={(e) => setExpertRowsPerPage(Number(e.target.value))}
-                                    className="px-3 py-1 bg-white/10 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                    className="pl-3 pr-8 py-1 bg-white/10 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M6%209l6%206%206-6%22/%3E%3C/svg%3E')] bg-no-repeat bg-[length:16px_16px] bg-[right_0.5rem_center]"
                                 >
                                     {[25, 50, 75, 100, 200, 500].map(size => (
                                         <option key={size} value={size} className="bg-slate-800">{size}</option>
@@ -1647,7 +1703,7 @@ function DataTable({ data, title, columns, searchable = true, onRowClick, clicka
                             <select
                                 value={rowsPerPage}
                                 onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                                className="px-3 py-1 bg-white/10 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                className="pl-3 pr-8 py-1 bg-white/10 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22M6%209l6%206%206-6%22/%3E%3C/svg%3E')] bg-no-repeat bg-[length:16px_16px] bg-[right_0.5rem_center]"
                             >
                                 {[25, 50, 75, 100, 200, 500].map(size => (
                                     <option key={size} value={size} className="bg-slate-800">{size}</option>
