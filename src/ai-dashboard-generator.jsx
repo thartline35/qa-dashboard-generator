@@ -2901,6 +2901,28 @@ function DataParsingSettings({ dataSources, onComplete, onCancel }) {
 
     const hasMultiSheetWorkbooks = dataSources.some(s => s.sheets.length > 1);
 
+    // Validate that all multi-sheet workbooks have at least one sheet selected
+    const canProceed = useMemo(() => {
+        if (!hasMultiSheetWorkbooks) return true;
+        
+        // Check if all multi-sheet workbooks have at least one sheet selected
+        return dataSources.every(source => {
+            if (source.sheets.length <= 1) return true; // Single sheet or CSV, always valid
+            const selectedSheets = sheetSelections[source.id] || [];
+            return selectedSheets.length > 0;
+        });
+    }, [dataSources, sheetSelections, hasMultiSheetWorkbooks]);
+
+    // Get list of workbooks missing sheet selections
+    const missingSheetSelections = useMemo(() => {
+        if (!hasMultiSheetWorkbooks) return [];
+        return dataSources.filter(source => {
+            if (source.sheets.length <= 1) return false;
+            const selectedSheets = sheetSelections[source.id] || [];
+            return selectedSheets.length === 0;
+        });
+    }, [dataSources, sheetSelections, hasMultiSheetWorkbooks]);
+
     return (
         <div className="min-h-screen bg-slate-950 text-white p-4 sm:p-8">
             <div className="max-w-4xl mx-auto">
@@ -2924,10 +2946,20 @@ function DataParsingSettings({ dataSources, onComplete, onCancel }) {
                                 For Excel files with multiple sheets, select which sheets you want to use. Each sheet will become a separate data source.
                             </p>
 
+                            {missingSheetSelections.length > 0 && (
+                                <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg">
+                                    <p className="text-sm text-rose-400 flex items-center gap-2">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        Please select at least one sheet for: {missingSheetSelections.map(s => s.name).join(', ')}
+                                    </p>
+                                </div>
+                            )}
+
                             {dataSources.map(source => {
                                 if (source.sheets.length <= 1) return null;
 
                                 const selectedSheets = sheetSelections[source.id] || [];
+                                const hasSelection = selectedSheets.length > 0;
 
                                 return (
                                     <div key={source.id} className="mb-6 last:mb-0">
@@ -2935,6 +2967,12 @@ function DataParsingSettings({ dataSources, onComplete, onCancel }) {
                                             <FileSpreadsheet className="h-4 w-4 text-slate-400" />
                                             <span className="font-medium text-white">{source.name}</span>
                                             <span className="text-xs text-slate-500">({source.sheets.length} sheets)</span>
+                                            {!hasSelection && (
+                                                <span className="text-xs text-rose-400 flex items-center gap-1">
+                                                    <AlertCircle className="h-3 w-3" />
+                                                    Required
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                                             {source.sheets.map(sheet => (
@@ -3044,7 +3082,12 @@ function DataParsingSettings({ dataSources, onComplete, onCancel }) {
 
                     <button
                         onClick={() => onComplete(settings, sheetSelections)}
-                        className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 rounded-xl text-white transition-all"
+                        disabled={!canProceed}
+                        className={`flex items-center gap-2 px-8 py-3 rounded-xl text-white transition-all ${
+                            canProceed
+                                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700'
+                                : 'bg-slate-700/50 cursor-not-allowed opacity-50'
+                        }`}
                     >
                         Continue to Configuration
                         <ArrowRight className="h-4 w-4" />
