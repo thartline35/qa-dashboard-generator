@@ -3189,6 +3189,7 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
         const onlyConsensus = config.metricNeeds.consensus &&
             !config.metricNeeds.approval &&
             !config.metricNeeds.quality;
+        const hasConsensus = config.metricNeeds.consensus;
 
         switch (step) {
             case 1: return config.projectType !== '';
@@ -3198,14 +3199,47 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
                 // Standard mode requires at least one of approval or quality
                 return config.metricNeeds.approval || config.metricNeeds.quality;
             case 3:
+                // Expert ID is always required
+                if (!config.expertIdColumn) return false;
+                
                 if (onlyConsensus) {
-                    return config.expertIdColumn &&
-                        config.taskIdColumn &&
+                    return config.taskIdColumn &&
                         config.timestampColumn &&
                         (config.consensusColumns?.length > 0);
                 }
-                return config.expertIdColumn && config.scoreColumn;
-            case 4: return true;
+                // If consensus is enabled (even with other modes), validate consensus fields
+                if (hasConsensus) {
+                    const consensusValid = config.taskIdColumn && (config.consensusColumns?.length > 0);
+                    // Consensus + other modes: validate standard fields AND consensus fields
+                    if (config.metricNeeds.approval || config.metricNeeds.quality) {
+                        return config.scoreColumn && consensusValid;
+                    }
+                    // Consensus-only (should have been caught above, but safety check)
+                    return consensusValid && config.timestampColumn;
+                }
+                // Standard mode (approval/quality without consensus)
+                return config.scoreColumn;
+            case 4:
+                // Final validation - ensure all mandatory fields are filled
+                // Expert ID is always required
+                if (!config.expertIdColumn) return false;
+                
+                if (onlyConsensus) {
+                    return config.taskIdColumn &&
+                        config.timestampColumn &&
+                        (config.consensusColumns?.length > 0);
+                }
+                if (hasConsensus) {
+                    const consensusValid = config.taskIdColumn && (config.consensusColumns?.length > 0);
+                    // If also approval/quality mode, need scoreColumn too
+                    if (config.metricNeeds.approval || config.metricNeeds.quality) {
+                        return config.scoreColumn && consensusValid;
+                    }
+                    // Consensus-only (should have been caught above, but safety check)
+                    return consensusValid && config.timestampColumn;
+                }
+                // Standard mode (approval/quality without consensus)
+                return config.scoreColumn;
             default: return true;
         }
     };
@@ -4109,7 +4143,11 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
                 ) : (
                     <button
                         onClick={() => onComplete(config)}
-                        className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 rounded-xl text-white transition-all"
+                        disabled={!canProceed()}
+                        className={`flex items-center gap-2 px-8 py-3 rounded-xl transition-all ${canProceed()
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white'
+                            : 'bg-slate-700 cursor-not-allowed opacity-50 text-slate-400'
+                            }`}
                     >
                         <Zap className="h-4 w-4" />
                         Generate Dashboard
