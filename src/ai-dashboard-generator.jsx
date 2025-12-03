@@ -897,7 +897,6 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
     let displayPoorCount = expertConsensus.filter(e => e.Consensus_Score <= 0.6).length;
     let displayUniqueTasks = uniqueTasks;
     let displayUniqueExperts = uniqueExperts;
-    let performanceLabel = "of experts";
 
     if (isExpertFiltered && filteredData && baseConsensusMetrics?.consensusCache && config) {
         const expertId = activeFilters.expert;
@@ -955,7 +954,6 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
         displayPoorCount = taskScores.filter(score => score <= 0.6).length;
         displayUniqueTasks = new Set(filteredData.map(r => r.taskId).filter(Boolean)).size;
         displayUniqueExperts = 1;
-        performanceLabel = "of tasks";
     }
 
     // Calculate performance tiers (all inclusive boundaries) - use display variables
