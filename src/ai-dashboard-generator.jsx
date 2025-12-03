@@ -8,11 +8,11 @@ import {
     Upload, AlertCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
     Search, Settings, X, FileSpreadsheet, Layers, CheckCircle2, AlertTriangle,
     Info, BarChart3, Table2, Users, UserCheck, FolderOpen, Calendar, Zap,
-    Filter, DollarSign, Palette, ArrowRight, ArrowLeft, Download,
+    Filter, Palette, ArrowRight, ArrowLeft, Download,
     HelpCircle, Database, Activity, FileText, Clock, Target, Award,
     Video, RefreshCw, Camera,
     Stethoscope, Code, Scale, Globe, FileEdit,
-    MessageSquare, Send, Sparkles, Home, Menu, ExternalLink
+    MessageSquare, Send, Sparkles, Home, ExternalLink
 } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
@@ -167,7 +167,7 @@ const QUALITY_TYPES = {
     }
 };
 
-const COLORS = ['#6366F1', '#8B5CF6', '#EC4899', '#F43F5E', '#F97316', '#EAB308', '#22C55E', '#14B8A6', '#06B6D4', '#3B82F6'];
+// const COLORS = ['#6366F1', '#8B5CF6', '#EC4899', '#F43F5E', '#F97316', '#EAB308', '#22C55E', '#14B8A6', '#06B6D4', '#3B82F6']; // Reserved for future use
 
 // Header Component
 function Header({ onNavigateHome, showNav = false }) {
@@ -876,7 +876,7 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
     // Early return AFTER all hooks
     if (!consensusMetrics) return null;
 
-    const { taskConsensus, expertConsensus, questionStats, projectConsensus, consensusDisagreementRate, uniqueTasks, uniqueExperts, avgAttemptsPerTask } = consensusMetrics;
+    const { expertConsensus, questionStats, projectConsensus, consensusDisagreementRate, uniqueTasks, uniqueExperts, avgAttemptsPerTask } = consensusMetrics;
 
     // Prepare chart data for question stats
     const questionChartData = questionStats.map(q => ({
@@ -3144,6 +3144,7 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
         autoDetectColumns(type);
     };
 
+    // eslint-disable-next-line no-unused-vars
     const handleQualityTypeSelect = (type) => {
         const qualityConfig = QUALITY_TYPES[type];
 
@@ -4597,16 +4598,16 @@ export default function QADashboardGenerator() {
                             date = str.substring(0, 10);
                         }
                         // MM/DD/YYYY or M/D/YYYY format
-                        else if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(str)) {
-                            const parts = str.split(/[\s\/]/);
+                        else if (/^\d{1,2}[/]\d{1,2}[/]\d{4}/.test(str)) {
+                            const parts = str.split(/[\s/]/);
                             const month = parts[0].padStart(2, '0');
                             const day = parts[1].padStart(2, '0');
                             const year = parts[2].substring(0, 4);
                             date = `${year}-${month}-${day}`;
                         }
                         // DD/MM/YYYY format (if dateFormat is set)
-                        else if (parsingSettings.dateFormat === 'DD/MM/YYYY' && /^\d{1,2}\/\d{1,2}\/\d{4}/.test(str)) {
-                            const parts = str.split(/[\s\/]/);
+                        else if (parsingSettings.dateFormat === 'DD/MM/YYYY' && /^\d{1,2}[/]\d{1,2}[/]\d{4}/.test(str)) {
+                            const parts = str.split(/[\s/]/);
                             const day = parts[0].padStart(2, '0');
                             const month = parts[1].padStart(2, '0');
                             const year = parts[2].substring(0, 4);
@@ -4879,6 +4880,7 @@ export default function QADashboardGenerator() {
     }, [filteredData, config, baseConsensusMetrics, activeFilters]);
 
     // Drill-down handlers
+    // eslint-disable-next-line no-unused-vars
     const handleStatusClick = (status) => {
         const statusMap = { 'Strong Pass': 'pass', 'Weak Pass': 'minor', 'Fail': 'fail' };
         const mapped = statusMap[status] || status.toLowerCase();
