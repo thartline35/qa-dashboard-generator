@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import { Analytics } from "@vercel/analytics/react"
 
 // Project type configurations
 const PROJECT_TYPES = {
@@ -5674,6 +5675,7 @@ export default function QADashboardGenerator() {
                     </button>
                 )}
                 <Footer />
+                <Analytics />
             </div>
         );
     }
@@ -5736,6 +5738,7 @@ export default function QADashboardGenerator() {
                 </div>
             </div>
             <Footer />
+            <Analytics />
         </div>
     );
 }
