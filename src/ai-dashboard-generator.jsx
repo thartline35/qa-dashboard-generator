@@ -5389,8 +5389,8 @@ export default function QADashboardGenerator() {
                                     <thead>
                                         <tr className="border-b border-white/10">
                                             <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Task ID</th>
-                                            {config.metricNeeds?.consensus && config.scoreColumn && (
-                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Score</th>
+                                            {config.metricNeeds?.consensus && (
+                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Consensus Score</th>
                                             )}
                                             {!isConsensusOnlyMode && (
                                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
@@ -5416,11 +5416,54 @@ export default function QADashboardGenerator() {
                                             const statusColor = row.status === 'pass' ? 'text-emerald-400' : row.status === 'minor' ? 'text-amber-400' : row.status === 'fail' ? 'text-rose-400' : 'text-slate-400';
                                             const dateDisplay = row.date ? new Date(row.date).toLocaleDateString() : 'N/A';
                                             
+                                            // Calculate consensus score for this task submission
+                                            let consensusScore = null;
+                                            if (config?.metricNeeds?.consensus && baseConsensusMetrics?.consensusCache) {
+                                                const taskId = row.taskId;
+                                                const consensusCache = baseConsensusMetrics.consensusCache;
+                                                const consensusColumns = config.consensusColumns || [];
+                                                
+                                                if (taskId && consensusCache[taskId] && consensusColumns.length > 0) {
+                                                    let totalMatches = 0;
+                                                    let totalAnswers = 0;
+                                                    
+                                                    consensusColumns.forEach(q => {
+                                                        const consensusAnswer = consensusCache[taskId]?.[q];
+                                                        const expertAnswer = row.raw?.[q];
+                                                        
+                                                        if (consensusAnswer && expertAnswer !== null && expertAnswer !== undefined) {
+                                                            const expertAnswerStr = String(expertAnswer).toLowerCase().trim();
+                                                            const consensusAnswerStr = String(consensusAnswer).toLowerCase().trim();
+                                                            
+                                                            if (expertAnswerStr !== '') {
+                                                                if (expertAnswerStr === consensusAnswerStr) {
+                                                                    totalMatches++;
+                                                                }
+                                                                totalAnswers++;
+                                                            }
+                                                        }
+                                                    });
+                                                    
+                                                    if (totalAnswers > 0) {
+                                                        consensusScore = (totalMatches / totalAnswers) * 100;
+                                                    }
+                                                }
+                                            }
+                                            
+                                            const consensusScoreColor = consensusScore !== null
+                                                ? consensusScore >= 90 ? 'text-emerald-400'
+                                                    : consensusScore >= 80 ? 'text-blue-400'
+                                                    : consensusScore >= 60 ? 'text-amber-400'
+                                                    : 'text-rose-400'
+                                                : 'text-slate-400';
+                                            
                                             return (
                                                 <tr key={idx} className="hover:bg-white/5 transition-colors">
                                                     <td className="px-4 py-3 text-sm text-slate-300">{row.taskId || 'N/A'}</td>
-                                                    {config.metricNeeds?.consensus && config.scoreColumn && (
-                                                        <td className="px-4 py-3 text-sm text-slate-300">{row.score || 'N/A'}</td>
+                                                    {config.metricNeeds?.consensus && (
+                                                        <td className={`px-4 py-3 text-sm font-medium ${consensusScoreColor}`}>
+                                                            {consensusScore !== null ? `${consensusScore.toFixed(1)}%` : 'N/A'}
+                                                        </td>
                                                     )}
                                                     {!isConsensusOnlyMode && (
                                                         <td className={`px-4 py-3 text-sm font-medium ${statusColor}`}>{statusDisplay}</td>
