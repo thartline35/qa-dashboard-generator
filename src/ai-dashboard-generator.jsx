@@ -752,7 +752,7 @@ function DateFilterPanel({ dateRange, selectedRange, onRangeChange }) {
 // Consensus Metrics Panel
 // Displays consensus analytics when enabled
 // ========================================================
-function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, activeFilters }) {
+function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, activeFilters, filteredData, baseConsensusMetrics, config }) {
     const [showAllLowPerformers, setShowAllLowPerformers] = useState(false);
     const [expertSortConfig, setExpertSortConfig] = useState({ key: 'Consensus_Score', direction: 'desc' });
     const [expertSearch, setExpertSearch] = useState('');
@@ -887,12 +887,82 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
         disagreement: parseFloat((q.consensus_disagreement_rate * 100).toFixed(1))
     }));
 
+    // When an expert is filtered, calculate task-level performance tiers
+    const isExpertFiltered = activeFilters?.expert;
+    let displayProjectConsensus = projectConsensus;
+    let displayDisagreementRate = consensusDisagreementRate;
+    let displayExcellentCount = expertConsensus.filter(e => e.Consensus_Score >= 0.9).length;
+    let displayGoodCount = expertConsensus.filter(e => e.Consensus_Score >= 0.8 && e.Consensus_Score < 0.9).length;
+    let displayNeedsImprovementCount = expertConsensus.filter(e => e.Consensus_Score >= 0.6 && e.Consensus_Score < 0.8).length;
+    let displayPoorCount = expertConsensus.filter(e => e.Consensus_Score <= 0.6).length;
+    let displayUniqueTasks = uniqueTasks;
+    let displayUniqueExperts = uniqueExperts;
+    let performanceLabel = "of experts";
 
-    // Calculate performance tiers (all inclusive boundaries)
-    const excellentCount = expertConsensus.filter(e => e.Consensus_Score >= 0.9).length;
-    const goodCount = expertConsensus.filter(e => e.Consensus_Score >= 0.8 && e.Consensus_Score < 0.9).length;
-    const needsImprovementCount = expertConsensus.filter(e => e.Consensus_Score >= 0.6 && e.Consensus_Score < 0.8).length;
-    const poorCount = expertConsensus.filter(e => e.Consensus_Score <= 0.6).length;
+    if (isExpertFiltered && filteredData && baseConsensusMetrics?.consensusCache && config) {
+        const expertId = activeFilters.expert;
+        const consensusCache = baseConsensusMetrics.consensusCache;
+        const consensusColumns = config.consensusColumns || [];
+        const expert = expertConsensus.find(e => e.expert_id === expertId);
+        
+        // Get expert's overall consensus score
+        if (expert) {
+            displayProjectConsensus = expert.Consensus_Score;
+            displayDisagreementRate = 1 - expert.Consensus_Score;
+        }
+
+        // Calculate task-level performance tiers based on expert's consensus score per task
+        // Use a Map to store one score per unique task (in case expert has multiple submissions to same task)
+        const taskScoresMap = new Map();
+        filteredData.forEach(row => {
+            const taskId = row.taskId;
+            if (!taskId || !consensusCache[taskId]) return;
+
+            // Only calculate once per task (use first submission if multiple)
+            if (taskScoresMap.has(taskId)) return;
+
+            let totalMatches = 0;
+            let totalAnswers = 0;
+
+            consensusColumns.forEach(q => {
+                const consensusAnswer = consensusCache[taskId]?.[q];
+                const expertAnswer = row.raw?.[q];
+
+                if (consensusAnswer && expertAnswer !== null && expertAnswer !== undefined) {
+                    const expertAnswerStr = String(expertAnswer).toLowerCase().trim();
+                    const consensusAnswerStr = String(consensusAnswer).toLowerCase().trim();
+
+                    if (expertAnswerStr !== '') {
+                        if (expertAnswerStr === consensusAnswerStr) {
+                            totalMatches++;
+                        }
+                        totalAnswers++;
+                    }
+                }
+            });
+
+            if (totalAnswers > 0) {
+                const taskConsensusScore = totalMatches / totalAnswers;
+                taskScoresMap.set(taskId, taskConsensusScore);
+            }
+        });
+
+        // Convert map to array and count tasks by performance tier
+        const taskScores = Array.from(taskScoresMap.values());
+        displayExcellentCount = taskScores.filter(score => score >= 0.9).length;
+        displayGoodCount = taskScores.filter(score => score >= 0.8 && score < 0.9).length;
+        displayNeedsImprovementCount = taskScores.filter(score => score >= 0.6 && score < 0.8).length;
+        displayPoorCount = taskScores.filter(score => score <= 0.6).length;
+        displayUniqueTasks = new Set(filteredData.map(r => r.taskId).filter(Boolean)).size;
+        displayUniqueExperts = 1;
+        performanceLabel = "of tasks";
+    }
+
+    // Calculate performance tiers (all inclusive boundaries) - use display variables
+    const excellentCount = displayExcellentCount;
+    const goodCount = displayGoodCount;
+    const needsImprovementCount = displayNeedsImprovementCount;
+    const poorCount = displayPoorCount;
 
     const handleExpertSort = (key) => {
         setExpertSortConfig(prev => ({
@@ -913,15 +983,15 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
             {/* Consensus KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl p-5 text-white shadow-xl">
-                    <div className="text-3xl font-bold mb-1">{(projectConsensus * 100).toFixed(1)}%</div>
-                    <div className="text-sm opacity-80">Project Consensus</div>
+                    <div className="text-3xl font-bold mb-1">{(displayProjectConsensus * 100).toFixed(1)}%</div>
+                    <div className="text-sm opacity-80">{isExpertFiltered ? 'Expert Consensus' : 'Project Consensus'}</div>
                 </div>
                 <div className="bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl p-5 text-white shadow-xl">
-                    <div className="text-3xl font-bold mb-1">{(consensusDisagreementRate * 100).toFixed(1)}%</div>
+                    <div className="text-3xl font-bold mb-1">{(displayDisagreementRate * 100).toFixed(1)}%</div>
                     <div className="text-sm opacity-80">Disagreement Rate</div>
                 </div>
                 <div className="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-5 text-white shadow-xl">
-                    <div className="text-3xl font-bold mb-1">{uniqueTasks.toLocaleString()}</div>
+                    <div className="text-3xl font-bold mb-1">{displayUniqueTasks.toLocaleString()}</div>
                     <div className="text-sm opacity-80">Unique Tasks</div>
                 </div>
                 <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-5 text-white shadow-xl">
@@ -932,27 +1002,43 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
 
             {/* Expert Performance Tiers */}
             <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Expert Performance Distribution</h3>
+                <h3 className="text-lg font-semibold text-white mb-4">{isExpertFiltered ? 'Task Performance Distribution' : 'Expert Performance Distribution'}</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-center">
                         <div className="text-2xl font-bold text-emerald-400">{excellentCount}</div>
                         <div className="text-sm text-emerald-300">Excellent (≥90%)</div>
-                        <div className="text-xs text-slate-500 mt-1">{uniqueExperts > 0 ? ((excellentCount / uniqueExperts) * 100).toFixed(1) : 0}% of experts</div>
+                        <div className="text-xs text-slate-500 mt-1">
+                            {isExpertFiltered 
+                                ? (displayUniqueTasks > 0 ? ((excellentCount / displayUniqueTasks) * 100).toFixed(1) : 0) + '% of tasks'
+                                : (displayUniqueExperts > 0 ? ((excellentCount / displayUniqueExperts) * 100).toFixed(1) : 0) + '% of experts'}
+                        </div>
                     </div>
                     <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl text-center">
                         <div className="text-2xl font-bold text-blue-400">{goodCount}</div>
                         <div className="text-sm text-blue-300">Good (80-89%)</div>
-                        <div className="text-xs text-slate-500 mt-1">{uniqueExperts > 0 ? ((goodCount / uniqueExperts) * 100).toFixed(1) : 0}% of experts</div>
+                        <div className="text-xs text-slate-500 mt-1">
+                            {isExpertFiltered 
+                                ? (displayUniqueTasks > 0 ? ((goodCount / displayUniqueTasks) * 100).toFixed(1) : 0) + '% of tasks'
+                                : (displayUniqueExperts > 0 ? ((goodCount / displayUniqueExperts) * 100).toFixed(1) : 0) + '% of experts'}
+                        </div>
                     </div>
                     <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-center">
                         <div className="text-2xl font-bold text-amber-400">{needsImprovementCount}</div>
                         <div className="text-sm text-amber-300">Needs Work (60-79%)</div>
-                        <div className="text-xs text-slate-500 mt-1">{uniqueExperts > 0 ? ((needsImprovementCount / uniqueExperts) * 100).toFixed(1) : 0}% of experts</div>
+                        <div className="text-xs text-slate-500 mt-1">
+                            {isExpertFiltered 
+                                ? (displayUniqueTasks > 0 ? ((needsImprovementCount / displayUniqueTasks) * 100).toFixed(1) : 0) + '% of tasks'
+                                : (displayUniqueExperts > 0 ? ((needsImprovementCount / displayUniqueExperts) * 100).toFixed(1) : 0) + '% of experts'}
+                        </div>
                     </div>
                     <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-center">
                         <div className="text-2xl font-bold text-rose-400">{poorCount}</div>
                         <div className="text-sm text-rose-300">Poor (&lt;60%)</div>
-                        <div className="text-xs text-slate-500 mt-1">{uniqueExperts > 0 ? ((poorCount / uniqueExperts) * 100).toFixed(1) : 0}% of experts</div>
+                        <div className="text-xs text-slate-500 mt-1">
+                            {isExpertFiltered 
+                                ? (displayUniqueTasks > 0 ? ((poorCount / displayUniqueTasks) * 100).toFixed(1) : 0) + '% of tasks'
+                                : (displayUniqueExperts > 0 ? ((poorCount / displayUniqueExperts) * 100).toFixed(1) : 0) + '% of experts'}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -5294,6 +5380,9 @@ export default function QADashboardGenerator() {
                     {consensusMetrics && (
                         <ConsensusMetricsPanel
                             consensusMetrics={consensusMetrics}
+                            filteredData={filteredData}
+                            baseConsensusMetrics={baseConsensusMetrics}
+                            config={config}
                             onExpertClick={(expertId) => setActiveFilters(prev => ({
                                 ...prev,
                                 expert: prev.expert === expertId ? null : expertId
