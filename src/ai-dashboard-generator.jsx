@@ -5649,7 +5649,7 @@ export default function QADashboardGenerator() {
         );
     }
 
-    // Upload screen
+    // Upload screen //
     return (
         <div className="min-h-screen bg-slate-950 text-white flex flex-col">
             <Header onNavigateHome={() => setShowLandingPage(true)} showNav={true} />
