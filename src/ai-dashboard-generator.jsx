@@ -2902,28 +2902,6 @@ function DataParsingSettings({ dataSources, onComplete, onCancel }) {
 
     const hasMultiSheetWorkbooks = dataSources.some(s => s.sheets.length > 1);
 
-    // Validate that all multi-sheet workbooks have at least one sheet selected
-    const canProceed = useMemo(() => {
-        if (!hasMultiSheetWorkbooks) return true;
-        
-        // Check if all multi-sheet workbooks have at least one sheet selected
-        return dataSources.every(source => {
-            if (source.sheets.length <= 1) return true; // Single sheet or CSV, always valid
-            const selectedSheets = sheetSelections[source.id] || [];
-            return selectedSheets.length > 0;
-        });
-    }, [dataSources, sheetSelections, hasMultiSheetWorkbooks]);
-
-    // Get list of workbooks missing sheet selections
-    const missingSheetSelections = useMemo(() => {
-        if (!hasMultiSheetWorkbooks) return [];
-        return dataSources.filter(source => {
-            if (source.sheets.length <= 1) return false;
-            const selectedSheets = sheetSelections[source.id] || [];
-            return selectedSheets.length === 0;
-        });
-    }, [dataSources, sheetSelections, hasMultiSheetWorkbooks]);
-
     return (
         <div className="min-h-screen bg-slate-950 text-white p-4 sm:p-8">
             <div className="max-w-4xl mx-auto">
@@ -2947,20 +2925,10 @@ function DataParsingSettings({ dataSources, onComplete, onCancel }) {
                                 For Excel files with multiple sheets, select which sheets you want to use. Each sheet will become a separate data source.
                             </p>
 
-                            {missingSheetSelections.length > 0 && (
-                                <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg">
-                                    <p className="text-sm text-rose-400 flex items-center gap-2">
-                                        <AlertTriangle className="h-4 w-4" />
-                                        Please select at least one sheet for: {missingSheetSelections.map(s => s.name).join(', ')}
-                                    </p>
-                                </div>
-                            )}
-
                             {dataSources.map(source => {
                                 if (source.sheets.length <= 1) return null;
 
                                 const selectedSheets = sheetSelections[source.id] || [];
-                                const hasSelection = selectedSheets.length > 0;
 
                                 return (
                                     <div key={source.id} className="mb-6 last:mb-0">
@@ -2968,12 +2936,6 @@ function DataParsingSettings({ dataSources, onComplete, onCancel }) {
                                             <FileSpreadsheet className="h-4 w-4 text-slate-400" />
                                             <span className="font-medium text-white">{source.name}</span>
                                             <span className="text-xs text-slate-500">({source.sheets.length} sheets)</span>
-                                            {!hasSelection && (
-                                                <span className="text-xs text-rose-400 flex items-center gap-1">
-                                                    <AlertCircle className="h-3 w-3" />
-                                                    Required
-                                                </span>
-                                            )}
                                         </div>
                                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                                             {source.sheets.map(sheet => (
@@ -3083,12 +3045,7 @@ function DataParsingSettings({ dataSources, onComplete, onCancel }) {
 
                     <button
                         onClick={() => onComplete(settings, sheetSelections)}
-                        disabled={!canProceed}
-                        className={`flex items-center gap-2 px-8 py-3 rounded-xl text-white transition-all ${
-                            canProceed
-                                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700'
-                                : 'bg-slate-700/50 cursor-not-allowed opacity-50'
-                        }`}
+                        className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 rounded-xl text-white transition-all"
                     >
                         Continue to Configuration
                         <ArrowRight className="h-4 w-4" />
@@ -5453,157 +5410,6 @@ export default function QADashboardGenerator() {
                                     />
                                 </BarChart>
                             </ResponsiveContainer>
-                        </div>
-                    )}
-
-                    {/* Expert Detailed View */}
-                    {activeFilters.expert && filteredData && (
-                        <div className="bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
-                            <div className="flex items-center justify-between mb-6">
-                                <div>
-                                    <h3 className="text-xl font-semibold text-white mb-1">
-                                        Expert Details: {activeFilters.expert}
-                                    </h3>
-                                    <p className="text-sm text-slate-400">
-                                        {filteredData.length} task submission{filteredData.length !== 1 ? 's' : ''}
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => clearFilter('expert')}
-                                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-white/10 rounded-lg text-sm text-slate-300 hover:text-white transition-colors"
-                                >
-                                    <X className="h-4 w-4" />
-                                    Close
-                                </button>
-                            </div>
-                            
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b border-white/10">
-                                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Task ID</th>
-                                            {config.metricNeeds?.consensus && (
-                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Consensus Score</th>
-                                            )}
-                                            {!isConsensusOnlyMode && (
-                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-                                            )}
-                                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Date</th>
-                                            {config.categoryColumn && (
-                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Category</th>
-                                            )}
-                                            {config.reviewerColumn && (
-                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Reviewer</th>
-                                            )}
-                                            {config.metricNeeds?.quality && (
-                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Quality Score</th>
-                                            )}
-                                            {config.taskLinkColumn && (
-                                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Task Link</th>
-                                            )}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-white/5">
-                                        {filteredData.map((row, idx) => {
-                                            const statusDisplay = row.status === 'pass' ? 'Strong Pass' : row.status === 'minor' ? 'Weak Pass' : row.status === 'fail' ? 'Fail' : row.status || 'N/A';
-                                            const statusColor = row.status === 'pass' ? 'text-emerald-400' : row.status === 'minor' ? 'text-amber-400' : row.status === 'fail' ? 'text-rose-400' : 'text-slate-400';
-                                            const dateDisplay = row.date ? new Date(row.date).toLocaleDateString() : 'N/A';
-                                            
-                                            // Calculate consensus score for this task submission
-                                            let consensusScore = null;
-                                            if (config?.metricNeeds?.consensus && baseConsensusMetrics?.consensusCache) {
-                                                const taskId = row.taskId;
-                                                const consensusCache = baseConsensusMetrics.consensusCache;
-                                                const consensusColumns = config.consensusColumns || [];
-                                                
-                                                if (taskId && consensusCache[taskId] && consensusColumns.length > 0) {
-                                                    let totalMatches = 0;
-                                                    let totalAnswers = 0;
-                                                    
-                                                    consensusColumns.forEach(q => {
-                                                        const consensusAnswer = consensusCache[taskId]?.[q];
-                                                        const expertAnswer = row.raw?.[q];
-                                                        
-                                                        if (consensusAnswer && expertAnswer !== null && expertAnswer !== undefined) {
-                                                            const expertAnswerStr = String(expertAnswer).toLowerCase().trim();
-                                                            const consensusAnswerStr = String(consensusAnswer).toLowerCase().trim();
-                                                            
-                                                            if (expertAnswerStr !== '') {
-                                                                if (expertAnswerStr === consensusAnswerStr) {
-                                                                    totalMatches++;
-                                                                }
-                                                                totalAnswers++;
-                                                            }
-                                                        }
-                                                    });
-                                                    
-                                                    if (totalAnswers > 0) {
-                                                        consensusScore = (totalMatches / totalAnswers) * 100;
-                                                    }
-                                                }
-                                            }
-                                            
-                                            const consensusScoreColor = consensusScore !== null
-                                                ? consensusScore >= 90 ? 'text-emerald-400'
-                                                    : consensusScore >= 80 ? 'text-blue-400'
-                                                    : consensusScore >= 60 ? 'text-amber-400'
-                                                    : 'text-rose-400'
-                                                : 'text-slate-400';
-                                            
-                                            return (
-                                                <tr key={idx} className="hover:bg-white/5 transition-colors">
-                                                    <td className="px-4 py-3 text-sm text-slate-300">{row.taskId || 'N/A'}</td>
-                                                    {config.metricNeeds?.consensus && (
-                                                        <td className={`px-4 py-3 text-sm font-medium ${consensusScoreColor}`}>
-                                                            {consensusScore !== null ? `${consensusScore.toFixed(1)}%` : 'N/A'}
-                                                        </td>
-                                                    )}
-                                                    {!isConsensusOnlyMode && (
-                                                        <td className={`px-4 py-3 text-sm font-medium ${statusColor}`}>{statusDisplay}</td>
-                                                    )}
-                                                    <td className="px-4 py-3 text-sm text-slate-300">{dateDisplay}</td>
-                                                    {config.categoryColumn && (
-                                                        <td className="px-4 py-3 text-sm text-slate-300">{row.category || 'N/A'}</td>
-                                                    )}
-                                                    {config.reviewerColumn && (
-                                                        <td className="px-4 py-3 text-sm text-slate-300">{row.reviewer || 'N/A'}</td>
-                                                    )}
-                                                    {config.metricNeeds?.quality && (
-                                                        <td className="px-4 py-3 text-sm text-slate-300">
-                                                            {row.qualityScore !== null && row.qualityScore !== undefined 
-                                                                ? `${row.qualityScore.toFixed(1)}%` 
-                                                                : 'N/A'}
-                                                        </td>
-                                                    )}
-                                                    {config.taskLinkColumn && (
-                                                        <td className="px-4 py-3 text-sm">
-                                                            {row.taskLink ? (
-                                                                <a 
-                                                                    href={row.taskLink} 
-                                                                    target="_blank" 
-                                                                    rel="noopener noreferrer"
-                                                                    className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-                                                                >
-                                                                    <ExternalLink className="h-3 w-3" />
-                                                                    Open
-                                                                </a>
-                                                            ) : (
-                                                                <span className="text-slate-500">N/A</span>
-                                                            )}
-                                                        </td>
-                                                    )}
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                            
-                            {filteredData.length === 0 && (
-                                <div className="text-center py-8 text-slate-400">
-                                    No task submissions found for this expert.
-                                </div>
-                            )}
                         </div>
                     )}
 
