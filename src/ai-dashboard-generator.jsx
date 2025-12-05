@@ -834,14 +834,14 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
     // Filter and sort low consensus tasks
     const filteredLowTasks = useMemo(() => {
         let tasks = [...lowConsensusTasks];
-        
+
         // Apply search filter
         if (taskSearch) {
-            tasks = tasks.filter(t => 
+            tasks = tasks.filter(t =>
                 t.task_id.toLowerCase().includes(taskSearch.toLowerCase())
             );
         }
-        
+
         // Apply sorting
         tasks.sort((a, b) => {
             let aVal, bVal;
@@ -860,7 +860,7 @@ function ConsensusMetricsPanel({ consensusMetrics, onTaskClick, onExpertClick, a
             }
             return taskSortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
         });
-        
+
         return tasks;
     }, [lowConsensusTasks, taskSearch, taskSortConfig]);
 
@@ -3202,7 +3202,7 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
             case 3:
                 // Expert ID is always required
                 if (!config.expertIdColumn) return false;
-                
+
                 if (onlyConsensus) {
                     return config.taskIdColumn &&
                         config.timestampColumn &&
@@ -3224,7 +3224,7 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
                 // Final validation - ensure all mandatory fields are filled
                 // Expert ID is always required
                 if (!config.expertIdColumn) return false;
-                
+
                 if (onlyConsensus) {
                     return config.taskIdColumn &&
                         config.timestampColumn &&
@@ -4507,10 +4507,19 @@ export default function QADashboardGenerator() {
 
         return rawData.map(row => {
             const expertId = row[config.expertIdColumn] ? String(row[config.expertIdColumn]).trim() : '';
+            // ──────────────────────────────────────────────────────────────
+            // CRITICAL FIX: Excel stores 1.0 as 0.9999999999999999 → breaks everything
+            // This file has 129 scores that should be 1.0 → only 1 was showing
+            // ──────────────────────────────────────────────────────────────
             const scoreRaw = row[config.scoreColumn];
-            const scoreStr = scoreRaw !== null && scoreRaw !== undefined ? String(scoreRaw).trim() : '';
-            const scoreLower = scoreStr.toLowerCase();
-            const numScore = parseNum(scoreRaw);
+            let scoreStr = scoreRaw !== null && scoreRaw !== undefined ? String(scoreRaw).trim() : '';
+            let scoreLower = scoreStr.toLowerCase();
+            let numScore = parseNum(scoreRaw);
+
+            // FIX: Normalize floating-point scores to 1 decimal place
+            if (!isNaN(numScore) && Number.isFinite(numScore)) {
+                numScore = Number(numScore.toFixed(1));  // 0.9999999999999999 → 1.0, 1.0000000000000002 → 1.0
+            }
             const scoreLooksNumeric = scoreStr !== '' && Number.isFinite(numScore);
             const forceNumeric = config.scoringMode === 'numeric_score' || scoreFormat === 'numeric' || scoreFormat === 'percentage';
             const autoNumeric = !qualityConfig && scoreLooksNumeric && config.passValues.length === 0 && config.failValues.length === 0 && config.minorValues.length === 0;
