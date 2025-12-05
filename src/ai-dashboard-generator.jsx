@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { Analytics } from "@vercel/analytics/react"
 
 // Project type configurations
 const PROJECT_TYPES = {
@@ -4877,56 +4876,7 @@ export default function QADashboardGenerator() {
         }
 
         // Calculate filtered metrics but use base consensus cache for accurate expert scoring
-        const filteredMetrics = calculateConsensusMetrics(filteredData, config, baseConsensusMetrics?.consensusCache);
-        
-        // If an expert filter is active, recalculate questionStats to compare filtered expert's answers to base consensus
-        if (activeFilters.expert && baseConsensusMetrics?.consensusCache && filteredData && filteredMetrics) {
-            const consensusColumns = config.consensusColumns || [];
-            const consensusCache = baseConsensusMetrics.consensusCache;
-            
-            // Recalculate questionStats by comparing filtered expert's answers to base consensus
-            const recalculatedQuestionStats = consensusColumns.map(q => {
-                let totalMatches = 0;
-                let totalAnswers = 0;
-                
-                // Go through all filtered data (should be just the selected expert's submissions)
-                filteredData.forEach(row => {
-                    const taskId = row.taskId;
-                    if (!taskId || !consensusCache[taskId]) return;
-                    
-                    const consensusAnswer = consensusCache[taskId]?.[q];
-                    const expertAnswer = row.raw?.[q];
-                    
-                    if (consensusAnswer && expertAnswer !== null && expertAnswer !== undefined) {
-                        const expertAnswerStr = String(expertAnswer).toLowerCase().trim();
-                        const consensusAnswerStr = String(consensusAnswer).toLowerCase().trim();
-                        
-                        if (expertAnswerStr !== '') {
-                            if (expertAnswerStr === consensusAnswerStr) {
-                                totalMatches++;
-                            }
-                            totalAnswers++;
-                        }
-                    }
-                });
-                
-                const consensus = totalAnswers > 0 ? totalMatches / totalAnswers : 0;
-                
-                return {
-                    question: q,
-                    consensus: consensus,
-                    consensus_disagreement_rate: 1 - consensus
-                };
-            });
-            
-            // Return filtered metrics with recalculated questionStats
-            return {
-                ...filteredMetrics,
-                questionStats: recalculatedQuestionStats
-            };
-        }
-        
-        return filteredMetrics;
+        return calculateConsensusMetrics(filteredData, config, baseConsensusMetrics?.consensusCache);
     }, [filteredData, config, baseConsensusMetrics, activeFilters]);
 
     // Drill-down handlers
@@ -5481,7 +5431,6 @@ export default function QADashboardGenerator() {
                     </button>
                 )}
                 <Footer />
-                <Analytics />
             </div>
         );
     }
@@ -5544,7 +5493,6 @@ export default function QADashboardGenerator() {
                 </div>
             </div>
             <Footer />
-            <Analytics />
         </div>
     );
 }
