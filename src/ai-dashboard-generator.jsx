@@ -3147,31 +3147,28 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
     // eslint-disable-next-line no-unused-vars
     const handleQualityTypeSelect = (type) => {
         const qualityConfig = QUALITY_TYPES[type];
-
-        // Use functional update to avoid stale closure issues
         setConfig(prev => {
             const updates = { ...prev, qualityType: type };
-
-            if (qualityConfig) {
-                if (qualityConfig.isNumeric) {
-                    // Always set defaults for numeric types
-                    updates.numericFailThreshold = qualityConfig.defaultFailThreshold;
-                    updates.numericMinorThreshold = qualityConfig.defaultMinorThreshold;
-                    // Clear discrete values when switching to numeric
-                    updates.passValues = [];
-                    updates.minorValues = [];
-                    updates.failValues = [];
-                } else {
-                    // Set discrete values
-                    updates.passValues = qualityConfig.defaultPass || [];
-                    updates.minorValues = qualityConfig.defaultMinor || [];
-                    updates.failValues = qualityConfig.defaultFail || [];
-                    // Clear numeric thresholds when switching to discrete
-                    updates.numericFailThreshold = null;
-                    updates.numericMinorThreshold = null;
-                }
+    
+            if (qualityConfig?.isNumeric) {
+                updates.scoreFormat = 'numeric';                    // CRITICAL LINE
+                updates.scoringMode = 'numeric_score';              // ALSO CRITICAL
+                updates.numericFailThreshold = qualityConfig.defaultFailThreshold;
+                updates.numericMinorThreshold = qualityConfig.defaultMinorThreshold;
+                updates.passValues = [];
+                updates.minorValues = [];
+                updates.failValues = [];
+                updates.excludeValues = [];
+            } else {
+                updates.scoreFormat = 'text';
+                updates.scoringMode = 'auto';
+                updates.passValues = qualityConfig?.defaultPass || [];
+                updates.minorValues = qualityConfig?.defaultMinor || [];
+                updates.failValues = qualityConfig?.defaultFail || [];
+                updates.excludeValues = [];
+                updates.numericFailThreshold = null;
+                updates.numericMinorThreshold = null;
             }
-
             return updates;
         });
     };
