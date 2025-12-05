@@ -4532,15 +4532,28 @@ export default function QADashboardGenerator() {
                     if (!isNaN(numScore)) {
                         const effectiveScore = (scoreFormat === "percentage" && numScore <= 1) ? (numScore * 100) : numScore;
 
-                        // Thresholds: use user-set, else defaults, else infer from data
+                        // Thresholds: use user-set, else quality-type defaults, else infer from data
                         let failThreshold = Number.isFinite(config.numericFailThreshold)
                             ? config.numericFailThreshold
                             : (qualityConfig?.defaultFailThreshold ?? (uniqueNumeric[0] ?? 0));
+
                         let minorThreshold = Number.isFinite(config.numericMinorThreshold)
                             ? config.numericMinorThreshold
                             : (qualityConfig?.defaultMinorThreshold ?? (uniqueNumeric[1] ?? (failThreshold + 1)));
 
-                        if (!Number.isFinite(config.numericFailThreshold) && !Number.isFinite(config.numericMinorThreshold)) {
+                        const hasQualityDefaults =
+                            qualityConfig &&
+                            Number.isFinite(qualityConfig.defaultFailThreshold) &&
+                            Number.isFinite(qualityConfig.defaultMinorThreshold);
+
+                        // Only auto-infer from data if:
+                        // - user did NOT set thresholds, AND
+                        // - the selected quality type does NOT define defaults.
+                        if (
+                            !Number.isFinite(config.numericFailThreshold) &&
+                            !Number.isFinite(config.numericMinorThreshold) &&
+                            !hasQualityDefaults
+                        ) {
                             if (uniqueNumeric.length >= 2) {
                                 failThreshold = uniqueNumeric[0];
                                 minorThreshold = uniqueNumeric[1];
@@ -4549,7 +4562,11 @@ export default function QADashboardGenerator() {
                                 minorThreshold = uniqueNumeric[0] + 1; // avoid collapsing all scores into fail
                             }
                         }
-                        if (!Number.isFinite(minorThreshold)) { minorThreshold = failThreshold + 1; }
+
+                        if (!Number.isFinite(minorThreshold)) {
+                            minorThreshold = failThreshold + 1;
+                        }
+
 
                         // Inclusive thresholds so boundary values are counted as expected
                         if (effectiveScore <= failThreshold) {
