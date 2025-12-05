@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { Analytics } from "@vercel/analytics/react"
 
 // Project type configurations
 const PROJECT_TYPES = {
@@ -3708,206 +3707,141 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
                     </div>
                 );
 
-                case 4:
-                    const scoreValues = getColumnValues(config.scoreColumn);
-                    // FIX: Use scoreFormat to determine if numeric, not qualityType
-                    const currentScoreFormat = config.scoreFormat || 'numeric';
-                    const isNumericFormat = currentScoreFormat === 'numeric' || currentScoreFormat === 'percentage';
-                    
-                    // Analyze actual score data to determine range and sensible defaults
-                    const scoreAnalysis = (() => {
-                        const source = rawData.length ? rawData : sampleData;
-                        const numericSamples = [];
-                        if (config.scoreColumn && source.length) {
-                            source.forEach(row => {
-                                const val = row[config.scoreColumn];
-                                if (val !== null && val !== undefined) {
-                                    const str = String(val).trim();
-                                    const match = str.match(/[-+]?\d*\.?\d+/);
-                                    if (match) {
-                                        const parsed = parseFloat(match[0]);
-                                        if (!isNaN(parsed)) numericSamples.push(parsed);
-                                    }
-                                }
-                            });
-                        }
-                        const uniqueScores = [...new Set(numericSamples)].sort((a, b) => a - b);
-                        const minScore = uniqueScores[0] ?? 0;
-                        const maxScore = uniqueScores[uniqueScores.length - 1] ?? 100;
-                        
-                        // Determine sensible defaults based on score range
-                        let defaultFail, defaultMinor;
-                        if (maxScore <= 5) {
-                            // Likely a 1-5 scale
-                            defaultFail = 2;
-                            defaultMinor = 3;
-                        } else if (maxScore <= 10) {
-                            // Likely a 1-10 scale
-                            defaultFail = 4;
-                            defaultMinor = 6;
-                        } else if (maxScore <= 100) {
-                            // Likely percentage or 0-100 scale
-                            defaultFail = 60;
-                            defaultMinor = 80;
-                        } else {
-                            // Unknown scale, use percentages of range
-                            defaultFail = minScore + (maxScore - minScore) * 0.4;
-                            defaultMinor = minScore + (maxScore - minScore) * 0.7;
-                        }
-                        
-                        return {
-                            minValue: minScore,
-                            maxValue: maxScore,
-                            defaultFailThreshold: defaultFail,
-                            defaultMinorThreshold: defaultMinor,
-                            step: maxScore > 10 ? 1 : 0.5,
-                            sampleCount: numericSamples.length
-                        };
-                    })();
-                
-                    // Initialize thresholds if not set (first time viewing this step)
-                    if (isNumericFormat && config.numericFailThreshold === null) {
-                        setTimeout(() => {
-                            if (config.numericFailThreshold === null) {
-                                updateConfig('numericFailThreshold', scoreAnalysis.defaultFailThreshold);
-                            }
-                        }, 0);
-                    }
-                    if (isNumericFormat && config.numericMinorThreshold === null) {
-                        setTimeout(() => {
-                            if (config.numericMinorThreshold === null) {
-                                updateConfig('numericMinorThreshold', scoreAnalysis.defaultMinorThreshold);
-                            }
-                        }, 0);
-                    }
-                
-                    const effectiveFailThreshold = config.numericFailThreshold ?? scoreAnalysis.defaultFailThreshold;
-                    const effectiveMinorThreshold = config.numericMinorThreshold ?? scoreAnalysis.defaultMinorThreshold;
-                
-                    return (
-                        <div className="space-y-6">
-                            <div className="text-center mb-8">
-                                <div className="w-16 h-16 bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                    <CheckCircle2 className="h-8 w-8 text-white" />
-                                </div>
-                                <h2 className="text-2xl font-bold text-white mb-2">Define Quality Thresholds</h2>
-                                <p className="text-slate-400">
-                                    {isNumericFormat ? 'Set numeric thresholds for pass/fail criteria' : 'Tell us which values indicate success or failure'}
-                                </p>
+            case 4:
+                const scoreValues = getColumnValues(config.scoreColumn);
+                const qualityConfig = QUALITY_TYPES[config.qualityType];
+                const isNumeric = qualityConfig?.isNumeric;
+
+                return (
+                    <div className="space-y-6">
+                        <div className="text-center mb-8">
+                            <div className="w-16 h-16 bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <CheckCircle2 className="h-8 w-8 text-white" />
                             </div>
-                
-                            {isNumericFormat ? (
-                                <div className="space-y-6">
-                                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">
-                                        <div className="flex items-center gap-2 text-sm text-indigo-300 mb-2">
-                                            <Info className="h-4 w-4" />
-                                            <span>Detected Score Range: {scoreAnalysis.minValue} - {scoreAnalysis.maxValue} ({scoreAnalysis.sampleCount} samples)</span>
+                            <h2 className="text-2xl font-bold text-white mb-2">Define Quality Thresholds</h2>
+                            <p className="text-slate-400">
+                                {isNumeric ? 'Set numeric thresholds for pass/fail criteria' : 'Tell us which values indicate success or failure'}
+                            </p>
+                        </div>
+
+                        {isNumeric ? (
+                            <div className="space-y-6">
+                                <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">
+                                    <div className="flex items-center gap-2 text-sm text-indigo-300 mb-2">
+                                        <Info className="h-4 w-4" />
+                                        <span>Scoring Range: {qualityConfig.minValue} - {qualityConfig.maxValue}</span>
+                                    </div>
+                                    <p className="text-xs text-slate-500">
+                                        Set thresholds to determine what scores are considered pass, minor issues, or fail.
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Fail Threshold */}
+                                    <div className="p-5 bg-rose-500/10 border-2 border-rose-500/30 rounded-xl">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <X className="h-5 w-5 text-rose-400" />
+                                            <label className="text-sm font-semibold text-rose-300">
+                                                Fail Threshold
+                                            </label>
                                         </div>
-                                        <p className="text-xs text-slate-500">
-                                            Set thresholds to determine what scores are considered pass, minor issues, or fail.
+                                        <p className="text-xs text-rose-300/70 mb-3">
+                                            Scores <strong>below</strong> this value are considered failures
                                         </p>
-                                    </div>
-                
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {/* Fail Threshold */}
-                                        <div className="p-5 bg-rose-500/10 border-2 border-rose-500/30 rounded-xl">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <X className="h-5 w-5 text-rose-400" />
-                                                <label className="text-sm font-semibold text-rose-300">
-                                                    Fail Threshold
-                                                </label>
-                                            </div>
-                                            <p className="text-xs text-rose-300/70 mb-3">
-                                                Scores <strong>below</strong> this value are considered failures
-                                            </p>
-                                            <div className="relative">
-                                                <input
-                                                    type="number"
-                                                    min={scoreAnalysis.minValue}
-                                                    max={scoreAnalysis.maxValue}
-                                                    step={scoreAnalysis.step}
-                                                    value={effectiveFailThreshold}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value;
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                min={qualityConfig.minValue}
+                                                max={qualityConfig.maxValue}
+                                                step={qualityConfig.maxValue > 10 ? 1 : 0.5}
+                                                value={config.numericFailThreshold ?? ''}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val === '' || val === null) {
+                                                        updateConfig('numericFailThreshold', qualityConfig.defaultFailThreshold);
+                                                    } else {
                                                         const parsed = parseFloat(val);
-                                                        updateConfig('numericFailThreshold', isNaN(parsed) ? scoreAnalysis.defaultFailThreshold : parsed);
-                                                    }} 
-                                                    className="w-full px-4 py-3 bg-white/5 border border-rose-500/50 rounded-xl text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-rose-500/50"
-                                                />
-                                                <div className="mt-2 text-xs text-rose-300/50">
-                                                    Example: Score of {Math.max(scoreAnalysis.minValue, effectiveFailThreshold - scoreAnalysis.step).toFixed(1)} = <span className="text-rose-400 font-semibold">FAIL</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                
-                                        {/* Minor Threshold */}
-                                        <div className="p-5 bg-amber-500/10 border-2 border-amber-500/30 rounded-xl">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <AlertTriangle className="h-5 w-5 text-amber-400" />
-                                                <label className="text-sm font-semibold text-amber-300">
-                                                    Minor Issues Threshold
-                                                </label>
-                                            </div>
-                                            <p className="text-xs text-amber-300/70 mb-3">
-                                                Scores <strong>below</strong> this (but above fail) have minor issues but still pass
-                                            </p>
-                                            <div className="relative">
-                                                <input
-                                                    type="number"
-                                                    min={scoreAnalysis.minValue}
-                                                    max={scoreAnalysis.maxValue}
-                                                    step={scoreAnalysis.step}
-                                                    value={effectiveMinorThreshold}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value;
-                                                        const parsed = parseFloat(val);
-                                                        updateConfig('numericMinorThreshold', isNaN(parsed) ? scoreAnalysis.defaultMinorThreshold : parsed);
-                                                    }} 
-                                                    className="w-full px-4 py-3 bg-white/5 border border-amber-500/50 rounded-xl text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/50"
-                                                />
-                                                <div className="mt-2 text-xs text-amber-300/50">
-                                                    Example: Score of {Math.max(effectiveFailThreshold, effectiveMinorThreshold - scoreAnalysis.step).toFixed(1)} = <span className="text-amber-400 font-semibold">MINOR (Weak Pass)</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                
-                                        {/* Pass Threshold (display only) */}
-                                        <div className="p-5 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-xl md:col-span-2">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                                                <label className="text-sm font-semibold text-emerald-300">
-                                                    Strong Pass
-                                                </label>
-                                            </div>
-                                            <p className="text-xs text-emerald-300/70 mb-2">
-                                                Scores at or above <strong>{effectiveMinorThreshold}</strong> are strong passes
-                                            </p>
-                                            <div className="mt-3 text-xs text-emerald-300/50">
-                                                Example: Score of {effectiveMinorThreshold} or higher = <span className="text-emerald-400 font-semibold">PASS</span>
+                                                        updateConfig('numericFailThreshold', isNaN(parsed) ? qualityConfig.defaultFailThreshold : parsed);
+                                                    }
+                                                }} className="w-full px-4 py-3 bg-white/5 border border-rose-500/50 rounded-xl text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                                            />
+                                            <div className="mt-2 text-xs text-rose-300/50">
+                                                Example: Score of {Math.floor((config.numericFailThreshold ?? qualityConfig.defaultFailThreshold) - 1)} = <span className="text-rose-400 font-semibold">FAIL</span>
                                             </div>
                                         </div>
                                     </div>
-                
-                                    {/* Visual Summary */}
-                                    <div className="p-5 bg-indigo-500/10 border border-indigo-500/30 rounded-xl">
-                                        <h4 className="text-sm font-semibold text-indigo-300 mb-3">📊 Threshold Summary</h4>
-                                        <div className="space-y-2 text-sm">
-                                            <div className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
-                                                <span className="text-slate-300">Score &lt; {effectiveFailThreshold}</span>
-                                                <span className="px-3 py-1 bg-rose-500/20 text-rose-300 rounded-full text-xs font-semibold">FAIL</span>
+
+                                    {/* Minor Threshold */}
+                                    <div className="p-5 bg-amber-500/10 border-2 border-amber-500/30 rounded-xl">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <AlertTriangle className="h-5 w-5 text-amber-400" />
+                                            <label className="text-sm font-semibold text-amber-300">
+                                                Minor Issues Threshold
+                                            </label>
+                                        </div>
+                                        <p className="text-xs text-amber-300/70 mb-3">
+                                            Scores <strong>below</strong> this (but above fail) have minor issues but still pass
+                                        </p>
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                min={qualityConfig.minValue}
+                                                max={qualityConfig.maxValue}
+                                                step={qualityConfig.maxValue > 10 ? 1 : 0.5}
+                                                value={config.numericMinorThreshold ?? ''}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val === '' || val === null) {
+                                                        updateConfig('numericMinorThreshold', qualityConfig.defaultMinorThreshold);
+                                                    } else {
+                                                        const parsed = parseFloat(val);
+                                                        updateConfig('numericMinorThreshold', isNaN(parsed) ? qualityConfig.defaultMinorThreshold : parsed);
+                                                    }
+                                                }} className="w-full px-4 py-3 bg-white/5 border border-amber-500/50 rounded-xl text-white text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                                            />
+                                            <div className="mt-2 text-xs text-amber-300/50">
+                                                Example: Score of {Math.floor((config.numericMinorThreshold ?? qualityConfig.defaultMinorThreshold) - 1)} = <span className="text-amber-400 font-semibold">MINOR (Weak Pass)</span>
                                             </div>
-                                            <div className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
-                                                <span className="text-slate-300">Score {effectiveFailThreshold} to {(effectiveMinorThreshold - scoreAnalysis.step).toFixed(1)}</span>
-                                                <span className="px-3 py-1 bg-amber-500/20 text-amber-300 rounded-full text-xs font-semibold">MINOR (Weak Pass)</span>
-                                            </div>
-                                            <div className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
-                                                <span className="text-slate-300">Score ≥ {effectiveMinorThreshold}</span>
-                                                <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-xs font-semibold">PASS (Strong)</span>
-                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Pass Threshold (display only) */}
+                                    <div className="p-5 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-xl md:col-span-2">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                                            <label className="text-sm font-semibold text-emerald-300">
+                                                Strong Pass
+                                            </label>
+                                        </div>
+                                        <p className="text-xs text-emerald-300/70 mb-2">
+                                            Scores at or above <strong>{config.numericMinorThreshold ?? qualityConfig.defaultMinorThreshold}</strong> are strong passes
+                                        </p>
+                                        <div className="mt-3 text-xs text-emerald-300/50">
+                                            Example: Score of {config.numericMinorThreshold ?? qualityConfig.defaultMinorThreshold} or higher = <span className="text-emerald-400 font-semibold">PASS</span>
                                         </div>
                                     </div>
                                 </div>
-                            ) : scoreValues.length > 0 ? (
+
+                                {/* Visual Summary */}
+                                <div className="p-5 bg-indigo-500/10 border border-indigo-500/30 rounded-xl">
+                                    <h4 className="text-sm font-semibold text-indigo-300 mb-3">📊 Threshold Summary</h4>
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+                                            <span className="text-slate-300">Score &lt; {config.numericFailThreshold ?? qualityConfig.defaultFailThreshold}</span>
+                                            <span className="px-3 py-1 bg-rose-500/20 text-rose-300 rounded-full text-xs font-semibold">FAIL</span>
+                                        </div>
+                                        <div className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+                                            <span className="text-slate-300">Score {config.numericFailThreshold ?? qualityConfig.defaultFailThreshold} - {((config.numericMinorThreshold ?? qualityConfig.defaultMinorThreshold) - (qualityConfig.maxValue > 10 ? 1 : 0.5)).toFixed(1)}</span>
+                                            <span className="px-3 py-1 bg-amber-500/20 text-amber-300 rounded-full text-xs font-semibold">MINOR (Weak Pass)</span>
+                                        </div>
+                                        <div className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+                                            <span className="text-slate-300">Score ≥ {config.numericMinorThreshold ?? qualityConfig.defaultMinorThreshold}</span>
+                                            <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-xs font-semibold">PASS (Strong)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : scoreValues.length > 0 ? (
                             <div className="space-y-6">
                                 <div className="bg-white/5 border border-white/10 rounded-xl p-4">
                                     <div className="text-sm text-slate-400 mb-3">
@@ -4553,18 +4487,6 @@ export default function QADashboardGenerator() {
         const isNumericConfig = qualityConfig?.isNumeric === true;
         const scoreFormat = config.scoreFormat || 'numeric';
 
-        // DEBUG: Log config values
-        console.log('=== PROCESSING DATA DEBUG ===');
-        console.log('scoreFormat:', scoreFormat);
-        console.log('qualityType:', config.qualityType);
-        console.log('isNumericConfig:', isNumericConfig);
-        console.log('numericFailThreshold from config:', config.numericFailThreshold, typeof config.numericFailThreshold);
-        console.log('numericMinorThreshold from config:', config.numericMinorThreshold, typeof config.numericMinorThreshold);
-        console.log('passValues:', config.passValues);
-        console.log('failValues:', config.failValues);
-        console.log('minorValues:', config.minorValues);
-        console.log('scoreColumn:', config.scoreColumn);
-
         // Collect numeric samples up-front for auto-threshold inference
         const parseNum = (raw) => {
             if (raw === null || raw === undefined) return NaN;
@@ -4582,20 +4504,8 @@ export default function QADashboardGenerator() {
             if (!isNaN(n)) numericSamples.push(n);
         });
         const uniqueNumeric = Array.from(new Set(numericSamples)).sort((a, b) => a - b);
-        
-        // DEBUG: Log score distribution
-        console.log('Unique numeric scores found:', uniqueNumeric);
-        console.log('Total numeric samples:', numericSamples.length);
-        
-        // DEBUG: Count score distribution
-        const scoreCounts = {};
-        numericSamples.forEach(n => { scoreCounts[n] = (scoreCounts[n] || 0) + 1; });
-        console.log('Score distribution:', scoreCounts);
 
-        let debugCounter = 0;
-        const statusCounts = { pass: 0, minor: 0, fail: 0, unknown: 0, excluded: 0 };
-
-        const result = rawData.map(row => {
+        return rawData.map(row => {
             const expertId = row[config.expertIdColumn] ? String(row[config.expertIdColumn]).trim() : '';
             const scoreRaw = row[config.scoreColumn];
             const scoreStr = scoreRaw !== null && scoreRaw !== undefined ? String(scoreRaw).trim() : '';
@@ -4610,82 +4520,30 @@ export default function QADashboardGenerator() {
             let status = 'unknown';
             let isExcluded = config.excludeValues.some(v => v.toLowerCase() === scoreLower);
 
-            // DEBUG: Log first few records in detail
-            if (debugCounter < 5) {
-                console.log(`--- Record ${debugCounter + 1} ---`);
-                console.log('scoreRaw:', scoreRaw, 'type:', typeof scoreRaw);
-                console.log('numScore:', numScore);
-                console.log('isNumeric:', isNumeric, '(forceNumeric:', forceNumeric, 'autoNumeric:', autoNumeric, ')');
-                console.log('isBinary:', isBinary);
-            }
-
             if (!isExcluded) {
                 if (isNumeric) {
                     // Numeric or percentage scoring system
                     if (!isNaN(numScore)) {
                         const effectiveScore = (scoreFormat === "percentage" && numScore <= 1) ? (numScore * 100) : numScore;
 
-                        // Thresholds: use user-set values, else calculate sensible defaults based on score range
-                        let failThreshold, minorThreshold;
-                        
-                        // Calculate score range for defaults
-                        const minScore = uniqueNumeric.length > 0 ? uniqueNumeric[0] : 0;
-                        const maxScore = uniqueNumeric.length > 0 ? uniqueNumeric[uniqueNumeric.length - 1] : 100;
-                        
-                        if (Number.isFinite(config.numericFailThreshold)) {
-                            failThreshold = config.numericFailThreshold;
-                        } else if (qualityConfig?.defaultFailThreshold !== undefined) {
-                            failThreshold = qualityConfig.defaultFailThreshold;
-                        } else {
-                            // Calculate sensible default based on actual score range
-                            if (maxScore <= 5) {
-                                // 1-5 scale: scores <= 2 fail
-                                failThreshold = 2;
-                            } else if (maxScore <= 10) {
-                                // 1-10 scale: scores <= 4 fail
-                                failThreshold = 4;
-                            } else if (maxScore <= 100) {
-                                // 0-100 scale: scores below 60 fail
-                                failThreshold = 60;
-                            } else {
-                                // Unknown scale: bottom 40% fails
-                                failThreshold = minScore + (maxScore - minScore) * 0.4;
-                            }
-                        }
-                        
-                        if (Number.isFinite(config.numericMinorThreshold)) {
-                            minorThreshold = config.numericMinorThreshold;
-                        } else if (qualityConfig?.defaultMinorThreshold !== undefined) {
-                            minorThreshold = qualityConfig.defaultMinorThreshold;
-                        } else {
-                            // Calculate sensible default based on actual score range
-                            if (maxScore <= 5) {
-                                // 1-5 scale: scores 3 are minor (weak pass)
-                                minorThreshold = 3;
-                            } else if (maxScore <= 10) {
-                                // 1-10 scale: scores 5-6 are minor
-                                minorThreshold = 6;
-                            } else if (maxScore <= 100) {
-                                // 0-100 scale: 60-80 are minor
-                                minorThreshold = 80;
-                            } else {
-                                // Unknown scale: 40-70% range is minor
-                                minorThreshold = minScore + (maxScore - minScore) * 0.7;
-                            }
-                        }
-                        
-                        // Ensure minorThreshold is greater than failThreshold
-                        if (minorThreshold <= failThreshold) {
-                            minorThreshold = failThreshold + 1;
-                        }
+                        // Thresholds: use user-set, else defaults, else infer from data
+                        let failThreshold = Number.isFinite(config.numericFailThreshold)
+                            ? config.numericFailThreshold
+                            : (qualityConfig?.defaultFailThreshold ?? (uniqueNumeric[0] ?? 0));
+                        let minorThreshold = Number.isFinite(config.numericMinorThreshold)
+                            ? config.numericMinorThreshold
+                            : (qualityConfig?.defaultMinorThreshold ?? (uniqueNumeric[1] ?? (failThreshold + 1)));
 
-                        // DEBUG: Log thresholds for first few records
-                        if (debugCounter < 5) {
-                            console.log('effectiveScore:', effectiveScore);
-                            console.log('failThreshold:', failThreshold);
-                            console.log('minorThreshold:', minorThreshold);
-                            console.log('Comparison: effectiveScore <= failThreshold?', effectiveScore, '<=', failThreshold, '=', effectiveScore <= failThreshold);
+                        if (!Number.isFinite(config.numericFailThreshold) && !Number.isFinite(config.numericMinorThreshold)) {
+                            if (uniqueNumeric.length >= 2) {
+                                failThreshold = uniqueNumeric[0];
+                                minorThreshold = uniqueNumeric[1];
+                            } else if (uniqueNumeric.length === 1) {
+                                failThreshold = uniqueNumeric[0];
+                                minorThreshold = uniqueNumeric[0] + 1; // avoid collapsing all scores into fail
+                            }
                         }
+                        if (!Number.isFinite(minorThreshold)) { minorThreshold = failThreshold + 1; }
 
                         // Inclusive thresholds so boundary values are counted as expected
                         if (effectiveScore <= failThreshold) {
@@ -4694,10 +4552,6 @@ export default function QADashboardGenerator() {
                             status = 'minor';
                         } else {
                             status = 'pass';
-                        }
-                        
-                        if (debugCounter < 5) {
-                            console.log('Assigned status:', status);
                         }
                     } else {
                         // If numeric is expected but value is not a number, mark as unknown
@@ -4867,24 +4721,6 @@ export default function QADashboardGenerator() {
         const passCount = validData.filter(r => r.status === 'pass').length;
         const minorCount = validData.filter(r => r.status === 'minor').length;
         const failCount = validData.filter(r => r.status === 'fail').length;
-        
-        // DEBUG: Log metrics calculation
-        console.log('DEBUG Metrics:', {
-            total,
-            totalValid,
-            excluded,
-            passCount,
-            minorCount,
-            failCount,
-            activeFilters,
-            statusCounts: {
-                pass: validData.filter(r => r.status === 'pass').length,
-                minor: validData.filter(r => r.status === 'minor').length,
-                fail: validData.filter(r => r.status === 'fail').length,
-                unknown: validData.filter(r => r.status === 'unknown' || !r.status).length,
-                allStatuses: [...new Set(validData.map(r => r.status))]
-            }
-        });
 
         // Approval should include both pass and minor
         const approvalRate = totalValid > 0 ? ((passCount + minorCount) / totalValid) * 100 : 0;
@@ -5040,56 +4876,7 @@ export default function QADashboardGenerator() {
         }
 
         // Calculate filtered metrics but use base consensus cache for accurate expert scoring
-        const filteredMetrics = calculateConsensusMetrics(filteredData, config, baseConsensusMetrics?.consensusCache);
-        
-        // If an expert filter is active, recalculate questionStats to compare filtered expert's answers to base consensus
-        if (activeFilters.expert && baseConsensusMetrics?.consensusCache && filteredData && filteredMetrics) {
-            const consensusColumns = config.consensusColumns || [];
-            const consensusCache = baseConsensusMetrics.consensusCache;
-            
-            // Recalculate questionStats by comparing filtered expert's answers to base consensus
-            const recalculatedQuestionStats = consensusColumns.map(q => {
-                let totalMatches = 0;
-                let totalAnswers = 0;
-                
-                // Go through all filtered data (should be just the selected expert's submissions)
-                filteredData.forEach(row => {
-                    const taskId = row.taskId;
-                    if (!taskId || !consensusCache[taskId]) return;
-                    
-                    const consensusAnswer = consensusCache[taskId]?.[q];
-                    const expertAnswer = row.raw?.[q];
-                    
-                    if (consensusAnswer && expertAnswer !== null && expertAnswer !== undefined) {
-                        const expertAnswerStr = String(expertAnswer).toLowerCase().trim();
-                        const consensusAnswerStr = String(consensusAnswer).toLowerCase().trim();
-                        
-                        if (expertAnswerStr !== '') {
-                            if (expertAnswerStr === consensusAnswerStr) {
-                                totalMatches++;
-                            }
-                            totalAnswers++;
-                        }
-                    }
-                });
-                
-                const consensus = totalAnswers > 0 ? totalMatches / totalAnswers : 0;
-                
-                return {
-                    question: q,
-                    consensus: consensus,
-                    consensus_disagreement_rate: 1 - consensus
-                };
-            });
-            
-            // Return filtered metrics with recalculated questionStats
-            return {
-                ...filteredMetrics,
-                questionStats: recalculatedQuestionStats
-            };
-        }
-        
-        return filteredMetrics;
+        return calculateConsensusMetrics(filteredData, config, baseConsensusMetrics?.consensusCache);
     }, [filteredData, config, baseConsensusMetrics, activeFilters]);
 
     // Drill-down handlers
@@ -5644,12 +5431,11 @@ export default function QADashboardGenerator() {
                     </button>
                 )}
                 <Footer />
-                <Analytics />
             </div>
         );
     }
 
-    // Upload screen //
+    // Upload screen
     return (
         <div className="min-h-screen bg-slate-950 text-white flex flex-col">
             <Header onNavigateHome={() => setShowLandingPage(true)} showNav={true} />
@@ -5707,7 +5493,6 @@ export default function QADashboardGenerator() {
                 </div>
             </div>
             <Footer />
-            <Analytics />
         </div>
     );
 }
