@@ -113,8 +113,8 @@ const QUALITY_TYPES = {
         isNumeric: true,
         minValue: 0,
         maxValue: 5,
-        defaultFailThreshold: 2,  // Below this = fail
-        defaultMinorThreshold: 3, // Below this (but above fail) = minor
+        defaultFailThreshold: 2.5,  // Below this = fail
+        defaultMinorThreshold: 3.5, // Below this (but above fail) = minor
         // Anything >= minorThreshold = pass
     },
     numeric_odds: {
@@ -123,8 +123,8 @@ const QUALITY_TYPES = {
         isNumeric: true,
         minValue: 0,
         maxValue: 3,
-        defaultFailThreshold: 1,
-        defaultMinorThreshold: 3,
+        defaultFailThreshold: 2.5,
+        defaultMinorThreshold: 3.5,
     },
     percentage: {
         name: 'Percentage (0-100%)',
@@ -3080,8 +3080,8 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
         scoringMode: 'auto',
         metricNeeds: { approval: true, quality: true, consensus: false, custom: '' },
         // Numeric thresholds
-        numericFailThreshold: null,   // Below this = fail
-        numericMinorThreshold: null,  // Below this (but >= fail threshold) = minor
+        numericFailThreshold: [0, 1, 2, 3, 4, 5],   // Below this = fail
+        numericMinorThreshold: [0, 1, 2, 3, 4, 5],  // Below this (but >= fail threshold) = minor
         // Legacy percentage fields (can be merged with numeric)
         percentagePassThreshold: 80,
         percentageFailThreshold: 60,
@@ -4513,6 +4513,13 @@ export default function QADashboardGenerator() {
             let scoreLower = scoreStr.toLowerCase();
             let numScore = parseNum(scoreRaw);
 
+            // Does the user have explicit discrete pass/fail/minor selections?
+            const hasDiscreteMapping =
+                (config.passValues?.length ?? 0) > 0 ||
+                (config.failValues?.length ?? 0) > 0 ||
+                (config.minorValues?.length ?? 0) > 0;
+
+
             // FIX: Normalize floating-point scores to 1 decimal place.
             if (!isNaN(numScore) && Number.isFinite(numScore)) {
                 numScore = Number(numScore.toFixed(1));  // 0.9999999999999999 → 1.0, 1.0000000000000002 → 1.0
@@ -4527,28 +4534,67 @@ export default function QADashboardGenerator() {
             let isExcluded = config.excludeValues.some(v => v.toLowerCase() === scoreLower);
 
             if (!isExcluded) {
-                if (isNumeric) {
-                    // Numeric or percentage scoring system
-                    if (!isNaN(numScore)) {
-                        const effectiveScore = (scoreFormat === "percentage" && numScore <= 1) ? (numScore * 100) : numScore;
 
-                        // Thresholds: use user-set, else quality-type defaults, else infer from data
+                // Binary scoring
+                if (isBinary) {
+                    const passBin = ['1', 'yes', 'true', 'y', 'strong pass', 'pass'];
+                    const failBin = ['0', 'no', 'false', 'n', 'fail', 'reject'];
+            
+                    if (passBin.includes(scoreLower)) {
+                        status = 'pass';
+                    } else if (failBin.includes(scoreLower)) {
+                        status = 'fail';
+                    } else {
+                        status = 'unknown';
+                    }
+                }
+            
+                // Discrete values selected in wizard (user-chosen fail/minor/pass)
+                else if (
+                    (config.passValues?.length || 0) > 0 ||
+                    (config.failValues?.length || 0) > 0 ||
+                    (config.minorValues?.length || 0) > 0
+                ) {
+                    const isFail  = config.failValues.some(v  => v.toLowerCase() === scoreLower);
+                    const isMinor = config.minorValues.some(v => v.toLowerCase() === scoreLower);
+                    const isPass  = config.passValues.some(v  => v.toLowerCase() === scoreLower);
+            
+                    if (isFail) {
+                        status = 'fail';
+                    } else if (isMinor) {
+                        status = 'minor';
+                    } else if (isPass) {
+                        status = 'pass';
+                    } else {
+                        status = 'unknown';
+                    }
+                }
+            
+                // Numeric scoring (fallback only)
+                else if (isNumeric) {
+            
+                    if (!isNaN(numScore)) {
+            
+                        const effectiveScore =
+                            (scoreFormat === "percentage" && numScore <= 1)
+                                ? (numScore * 100)
+                                : numScore;
+            
+                        // Threshold logic (your existing): user-set > type defaults > infer
                         let failThreshold = Number.isFinite(config.numericFailThreshold)
                             ? config.numericFailThreshold
                             : (qualityConfig?.defaultFailThreshold ?? (uniqueNumeric[0] ?? 0));
-
+            
                         let minorThreshold = Number.isFinite(config.numericMinorThreshold)
                             ? config.numericMinorThreshold
                             : (qualityConfig?.defaultMinorThreshold ?? (uniqueNumeric[1] ?? (failThreshold + 1)));
-
+            
                         const hasQualityDefaults =
                             qualityConfig &&
                             Number.isFinite(qualityConfig.defaultFailThreshold) &&
                             Number.isFinite(qualityConfig.defaultMinorThreshold);
-
-                        // Only auto-infer from data if:
-                        // - user did NOT set thresholds, AND
-                        // - the selected quality type does NOT define defaults.
+            
+                        // auto-infer only when the user NEVER set thresholds AND type has no defaults
                         if (
                             !Number.isFinite(config.numericFailThreshold) &&
                             !Number.isFinite(config.numericMinorThreshold) &&
@@ -4559,16 +4605,15 @@ export default function QADashboardGenerator() {
                                 minorThreshold = uniqueNumeric[1];
                             } else if (uniqueNumeric.length === 1) {
                                 failThreshold = uniqueNumeric[0];
-                                minorThreshold = uniqueNumeric[0] + 1; // avoid collapsing all scores into fail
+                                minorThreshold = uniqueNumeric[0] + 1;
                             }
                         }
-
+            
                         if (!Number.isFinite(minorThreshold)) {
                             minorThreshold = failThreshold + 1;
                         }
-
-
-                        // Inclusive thresholds so boundary values are counted as expected
+            
+                        // Assign status using thresholds
                         if (effectiveScore <= failThreshold) {
                             status = 'fail';
                         } else if (effectiveScore <= minorThreshold) {
@@ -4576,27 +4621,19 @@ export default function QADashboardGenerator() {
                         } else {
                             status = 'pass';
                         }
-                    } else {
-                        // If numeric is expected but value is not a number, mark as unknown
-                        status = 'unknown';
-                        console.warn(`Non-numeric score found: "${scoreStr}" for expert ${expertId}`);
                     }
-                } else if (isBinary) {
-                    const passBin = ['1', 'yes', 'true', 'y', 'strong pass', 'pass'];
-                    const failBin = ['0', 'no', 'false', 'n', 'fail', 'reject'];
-                    if (passBin.includes(scoreLower)) status = 'pass';
-                    else if (failBin.includes(scoreLower)) status = 'fail';
-                } else {
-                    // Discrete text system
-                    const isMinor = config.minorValues.some(v => v.toLowerCase() === scoreLower);
-                    const isPass = config.passValues.some(v => v.toLowerCase() === scoreLower);
-                    const isFail = config.failValues.some(v => v.toLowerCase() === scoreLower);
-
-                    if (isMinor) status = 'minor';
-                    else if (isPass) status = 'pass';
-                    else if (isFail) status = 'fail';
+            
+                    else {
+                        status = 'unknown';
+                    }
+                }
+            
+                // Fallback
+                else {
+                    status = 'unknown';
                 }
             }
+            
 
 
             let date = '';
