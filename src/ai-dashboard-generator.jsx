@@ -4516,7 +4516,7 @@ export default function QADashboardGenerator() {
             let scoreLower = scoreStr.toLowerCase();
             let numScore = parseNum(scoreRaw);
 
-            // FIX: Normalize floating-point scores to 1 decimal place
+            // FIX: Normalize floating-point scores to 1 decimal place.
             if (!isNaN(numScore) && Number.isFinite(numScore)) {
                 numScore = Number(numScore.toFixed(1));  // 0.9999999999999999 → 1.0, 1.0000000000000002 → 1.0
             }
