@@ -4539,7 +4539,7 @@ export default function QADashboardGenerator() {
                 if (isBinary) {
                     const passBin = ['1', 'yes', 'true', 'y', 'strong pass', 'pass'];
                     const failBin = ['0', 'no', 'false', 'n', 'fail', 'reject'];
-            
+
                     if (passBin.includes(scoreLower)) {
                         status = 'pass';
                     } else if (failBin.includes(scoreLower)) {
@@ -4548,17 +4548,13 @@ export default function QADashboardGenerator() {
                         status = 'unknown';
                     }
                 }
-            
+
                 // Discrete values selected in wizard (user-chosen fail/minor/pass)
-                else if (
-                    (config.passValues?.length || 0) > 0 ||
-                    (config.failValues?.length || 0) > 0 ||
-                    (config.minorValues?.length || 0) > 0
-                ) {
-                    const isFail  = config.failValues.some(v  => v.toLowerCase() === scoreLower);
+                else if (hasDiscreteMapping) {
+                    const isFail = config.failValues.some(v => v.toLowerCase() === scoreLower);
                     const isMinor = config.minorValues.some(v => v.toLowerCase() === scoreLower);
-                    const isPass  = config.passValues.some(v  => v.toLowerCase() === scoreLower);
-            
+                    const isPass = config.passValues.some(v => v.toLowerCase() === scoreLower);
+
                     if (isFail) {
                         status = 'fail';
                     } else if (isMinor) {
@@ -4569,31 +4565,31 @@ export default function QADashboardGenerator() {
                         status = 'unknown';
                     }
                 }
-            
+
                 // Numeric scoring (fallback only)
                 else if (isNumeric) {
-            
+
                     if (!isNaN(numScore)) {
-            
+
                         const effectiveScore =
                             (scoreFormat === "percentage" && numScore <= 1)
                                 ? (numScore * 100)
                                 : numScore;
-            
+
                         // Threshold logic (your existing): user-set > type defaults > infer
                         let failThreshold = Number.isFinite(config.numericFailThreshold)
                             ? config.numericFailThreshold
                             : (qualityConfig?.defaultFailThreshold ?? (uniqueNumeric[0] ?? 0));
-            
+
                         let minorThreshold = Number.isFinite(config.numericMinorThreshold)
                             ? config.numericMinorThreshold
                             : (qualityConfig?.defaultMinorThreshold ?? (uniqueNumeric[1] ?? (failThreshold + 1)));
-            
+
                         const hasQualityDefaults =
                             qualityConfig &&
                             Number.isFinite(qualityConfig.defaultFailThreshold) &&
                             Number.isFinite(qualityConfig.defaultMinorThreshold);
-            
+
                         // auto-infer only when the user NEVER set thresholds AND type has no defaults
                         if (
                             !Number.isFinite(config.numericFailThreshold) &&
@@ -4608,11 +4604,11 @@ export default function QADashboardGenerator() {
                                 minorThreshold = uniqueNumeric[0] + 1;
                             }
                         }
-            
+
                         if (!Number.isFinite(minorThreshold)) {
                             minorThreshold = failThreshold + 1;
                         }
-            
+
                         // Assign status using thresholds
                         if (effectiveScore <= failThreshold) {
                             status = 'fail';
@@ -4622,18 +4618,18 @@ export default function QADashboardGenerator() {
                             status = 'pass';
                         }
                     }
-            
+
                     else {
                         status = 'unknown';
                     }
                 }
-            
+
                 // Fallback
                 else {
                     status = 'unknown';
                 }
             }
-            
+
 
 
             let date = '';
