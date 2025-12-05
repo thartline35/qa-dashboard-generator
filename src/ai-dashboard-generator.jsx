@@ -107,24 +107,24 @@ const PROJECT_TYPES = {
 
 // Quality measurement types
 const QUALITY_TYPES = {
-    numeric_1_5: {
+    numeric_0_5: {
         name: 'Numeric Score (1-5)',
         description: 'Scores like 1, 3, 5',
         isNumeric: true,
-        minValue: 1,
+        minValue: 0,
         maxValue: 5,
-        defaultFailThreshold: 2.5,  // Below this = fail
-        defaultMinorThreshold: 3.5, // Below this (but above fail) = minor
+        defaultFailThreshold: 2,  // Below this = fail
+        defaultMinorThreshold: 3, // Below this (but above fail) = minor
         // Anything >= minorThreshold = pass
     },
-    numeric_1_3: {
-        name: 'Numeric Score (1-3)',
-        description: 'Simple 1, 2, 3 scoring',
+    numeric_odds: {
+        name: 'Numeric Score (0,1,3,5)',
+        description: 'Simple 1, 3, 5 scoring',
         isNumeric: true,
-        minValue: 1,
+        minValue: 0,
         maxValue: 3,
-        defaultFailThreshold: 1.5,
-        defaultMinorThreshold: 2.5,
+        defaultFailThreshold: 1,
+        defaultMinorThreshold: 3,
     },
     percentage: {
         name: 'Percentage (0-100%)',
@@ -3149,7 +3149,7 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
         const qualityConfig = QUALITY_TYPES[type];
         setConfig(prev => {
             const updates = { ...prev, qualityType: type };
-    
+
             if (qualityConfig?.isNumeric) {
                 updates.scoreFormat = 'numeric';                    // CRITICAL LINE
                 updates.scoringMode = 'numeric_score';              // ALSO CRITICAL
