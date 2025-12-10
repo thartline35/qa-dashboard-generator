@@ -7,7 +7,7 @@ import {
 import {
     Upload, AlertCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
     Search, Settings, X, FileSpreadsheet, Layers, CheckCircle2, AlertTriangle,
-    Info, BarChart3, Table2, Users, UserCheck, FolderOpen, Calendar, Zap,
+    Info, BarChart3, Table2, Table, Users, UserCheck, FolderOpen, Calendar, Zap,
     Filter, Palette, ArrowRight, ArrowLeft, Download,
     HelpCircle, Database, Activity, FileText, Clock, Target, Award,
     Video, RefreshCw, Camera,
