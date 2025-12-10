@@ -1876,9 +1876,24 @@ function SheetSelector({ sheets, selectedSheet, onSheetChange }) {
 }
 
 // Export Menu Component
-function ExportMenu({ metrics, expertPerformance, categoryBreakdown, reviewerStats, processedData, config, fileName }) {
+function ExportMenu({
+    metrics,
+    expertPerformance,
+    categoryBreakdown,
+    reviewerStats,
+    processedData,
+    config,
+    fileName,
+    consensusMetrics,
+    isConsensusOnlyMode
+}) {
     const [showMenu, setShowMenu] = useState(false);
     const [exporting, setExporting] = useState(false);
+
+    // Are we in consensus-only mode *and* do we have consensus metrics?
+    const isConsensusExport = !!(isConsensusOnlyMode && consensusMetrics);
+
+    const LOW_THRESHOLD = 0.7; // "very low" consensus cutoff
 
     const generateCSV = (data, headers) => {
         if (!data || data.length === 0) return '';
@@ -1911,6 +1926,46 @@ function ExportMenu({ metrics, expertPerformance, categoryBreakdown, reviewerSta
     };
 
     const exportSummary = () => {
+        // === CONSENSUS SUMMARY ===
+        if (isConsensusExport) {
+            const {
+                uniqueTasks,
+                uniqueExperts,
+                totalAttempts,
+                avgAttemptsPerTask,
+                projectConsensus,
+                consensusDisagreementRate
+            } = consensusMetrics;
+
+            const summary = [
+                '# Consensus Dashboard Summary Report',
+                `Generated: ${new Date().toLocaleString()}`,
+                `Source File: ${fileName}`,
+                '',
+                '## Key Consensus Metrics',
+                `- Unique Tasks: ${uniqueTasks}`,
+                `- Unique Experts: ${uniqueExperts}`,
+                `- Total Attempts: ${totalAttempts}`,
+                `- Avg Attempts per Task: ${avgAttemptsPerTask.toFixed(2)}`,
+                `- Project Consensus: ${(projectConsensus * 100).toFixed(1)}%`,
+                `- Consensus Disagreement Rate: ${(consensusDisagreementRate * 100).toFixed(1)}%`,
+                '',
+                '## Configuration',
+                `- Project Type: ${config.projectType}`,
+                `- Quality System: ${config.qualityType}`,
+                `- Expert Column: ${config.expertIdColumn}`,
+                `- Score Column: ${config.scoreColumn}`
+            ].filter(Boolean).join('\n');
+
+            downloadFile(
+                summary,
+                `${fileName.replace(/\.[^.]+$/, '')}-consensus-summary.md`,
+                'text/markdown'
+            );
+            return;
+        }
+
+        // === ORIGINAL QUALITY/APPROVAL SUMMARY ===
         const summary = [
             '# QA Dashboard Summary Report',
             `Generated: ${new Date().toLocaleString()}`,
@@ -1930,34 +1985,109 @@ function ExportMenu({ metrics, expertPerformance, categoryBreakdown, reviewerSta
             `- Unique Experts: ${metrics.uniqueExperts}`,
             `- Categories: ${metrics.uniqueCategories}`,
             `- Reviewers: ${metrics.uniqueReviewers}`,
-            metrics.avgQuality !== null ? `- Average Quality Score: ${metrics.avgQuality.toFixed(1)}%` : '',
+            metrics.avgQuality !== null
+                ? `- Average Quality Score: ${metrics.avgQuality.toFixed(1)}%`
+                : '',
             '',
             '## Configuration',
             `- Project Type: ${config.projectType}`,
             `- Quality System: ${config.qualityType}`,
             `- Expert Column: ${config.expertIdColumn}`,
-            `- Score Column: ${config.scoreColumn}`,
+            `- Score Column: ${config.scoreColumn}`
         ].filter(Boolean).join('\n');
 
-        downloadFile(summary, `${fileName.replace(/\.[^.]+$/, '')}-summary.md`, 'text/markdown');
+        downloadFile(
+            summary,
+            `${fileName.replace(/\.[^.]+$/, '')}-summary.md`,
+            'text/markdown'
+        );
     };
 
     const exportExpertData = () => {
+        // In consensus mode, export expert consensus scores
+        if (isConsensusExport) {
+            const rows = (consensusMetrics.expertConsensus || []).map(e => ({
+                'Expert ID': e.expert_id,
+                Attempts: e.attempts,
+                'Consensus Score %': (e.Consensus_Score * 100).toFixed(1)
+            }));
+            const csv = generateCSV(rows);
+            downloadFile(
+                csv,
+                `${fileName.replace(/\.[^.]+$/, '')}-expert-consensus.csv`,
+                'text/csv'
+            );
+            return;
+        }
+
         const csv = generateCSV(expertPerformance);
-        downloadFile(csv, `${fileName.replace(/\.[^.]+$/, '')}-expert-performance.csv`, 'text/csv');
+        downloadFile(
+            csv,
+            `${fileName.replace(/\.[^.]+$/, '')}-expert-performance.csv`,
+            'text/csv'
+        );
     };
 
     const exportCategoryData = () => {
         const csv = generateCSV(categoryBreakdown);
-        downloadFile(csv, `${fileName.replace(/\.[^.]+$/, '')}-category-breakdown.csv`, 'text/csv');
+        downloadFile(
+            csv,
+            `${fileName.replace(/\.[^.]+$/, '')}-category-breakdown.csv`,
+            'text/csv'
+        );
     };
 
     const exportReviewerData = () => {
         const csv = generateCSV(reviewerStats);
-        downloadFile(csv, `${fileName.replace(/\.[^.]+$/, '')}-reviewer-stats.csv`, 'text/csv');
+        downloadFile(
+            csv,
+            `${fileName.replace(/\.[^.]+$/, '')}-reviewer-stats.csv`,
+            'text/csv'
+        );
     };
 
     const exportDetailedData = () => {
+        // In consensus mode, export TASK-LEVEL consensus rather than per-attempt quality
+        if (isConsensusExport) {
+            const taskConsensus = consensusMetrics.taskConsensus || [];
+            if (!taskConsensus.length) {
+                alert('No consensus task data to export.');
+                return;
+            }
+
+            // Figure out which columns are per-question consensus rates
+            const sample = taskConsensus[0];
+            const rateCols = Object.keys(sample).filter(
+                k => k.endsWith('_rate') && k !== 'overall_consensus'
+            );
+
+            const detailedForExport = taskConsensus.map(t => {
+                const row = {
+                    'Task ID': t.task_id,
+                    Attempts: t.attempts,
+                    'Overall Consensus %': (t.overall_consensus * 100).toFixed(1)
+                };
+
+                rateCols.forEach(col => {
+                    const questionName = col.replace(/_rate$/, '');
+                    const val = t[col];
+                    row[`${questionName} Consensus %`] =
+                        val != null ? (val * 100).toFixed(1) : '';
+                });
+
+                return row;
+            });
+
+            const csv = generateCSV(detailedForExport);
+            downloadFile(
+                csv,
+                `${fileName.replace(/\.[^.]+$/, '')}-consensus-tasks.csv`,
+                'text/csv'
+            );
+            return;
+        }
+
+        // ORIGINAL detailed export (per-attempt, with qualityScore)
         const detailedForExport = processedData.slice(0, 10000).map(r => ({
             Date: r.date || '',
             Expert: r.expertId,
@@ -1966,79 +2096,256 @@ function ExportMenu({ metrics, expertPerformance, categoryBreakdown, reviewerSta
             Category: r.category || '',
             Reviewer: r.reviewer || '',
             Excluded: r.isExcluded ? 'Yes' : 'No',
-            QualityScore: r.qualityScore !== null ? r.qualityScore.toFixed(1) : ''
+            QualityScore:
+                r.qualityScore !== null && r.qualityScore !== undefined
+                    ? r.qualityScore.toFixed(1)
+                    : ''
         }));
         const csv = generateCSV(detailedForExport);
-        downloadFile(csv, `${fileName.replace(/\.[^.]+$/, '')}-detailed-records.csv`, 'text/csv');
+        downloadFile(
+            csv,
+            `${fileName.replace(/\.[^.]+$/, '')}-detailed-records.csv`,
+            'text/csv'
+        );
     };
 
     const exportAllToExcel = async () => {
         setExporting(true);
         try {
-            // Create workbook with multiple sheets
             const wb = XLSX.utils.book_new();
 
-            // Summary sheet
-            const summaryData = [
-                ['QA Dashboard Summary Report'],
-                ['Generated', new Date().toLocaleString()],
-                ['Source File', fileName],
-                [''],
-                ['Key Metrics'],
-                ['Total Records', metrics.total],
-                ['Valid Records', metrics.totalValid],
-                ['Excluded', metrics.excluded],
-                ['Approval Rate', `${metrics.approvalRate.toFixed(1)}%`],
-                ['Defect Rate', `${metrics.defectRate.toFixed(1)}%`],
-                ['Pass Count', metrics.passCount],
-                ['Minor Issues', metrics.minorCount],
-                ['Fail Count', metrics.failCount],
-                [''],
-                ['Coverage'],
-                ['Unique Experts', metrics.uniqueExperts],
-                ['Categories', metrics.uniqueCategories],
-                ['Reviewers', metrics.uniqueReviewers],
-            ];
-            if (metrics.avgQuality !== null) {
-                summaryData.push(['Average Quality Score', `${metrics.avgQuality.toFixed(1)}%`]);
+            // === CONSENSUS-ONLY EXPORT ===
+            if (isConsensusExport) {
+                const {
+                    uniqueTasks,
+                    uniqueExperts,
+                    totalAttempts,
+                    avgAttemptsPerTask,
+                    projectConsensus,
+                    consensusDisagreementRate,
+                    expertConsensus,
+                    taskConsensus,
+                    questionStats
+                } = consensusMetrics;
+
+                // Summary sheet (consensus-focused)
+                const summaryData = [
+                    ['Consensus Dashboard Summary Report'],
+                    ['Generated', new Date().toLocaleString()],
+                    ['Source File', fileName],
+                    [''],
+                    ['Key Consensus Metrics'],
+                    ['Unique Tasks', uniqueTasks],
+                    ['Unique Experts', uniqueExperts],
+                    ['Total Attempts', totalAttempts],
+                    ['Avg Attempts per Task', avgAttemptsPerTask],
+                    ['Project Consensus', `${(projectConsensus * 100).toFixed(1)}%`],
+                    [
+                        'Consensus Disagreement Rate',
+                        `${(consensusDisagreementRate * 100).toFixed(1)}%`
+                    ]
+                ];
+                const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+                XLSX.utils.book_append_sheet(wb, wsSummary, 'Consensus Summary');
+
+                // Expert Consensus sheet (all experts)
+                if (expertConsensus && expertConsensus.length > 0) {
+                    const expertRows = expertConsensus.map(e => ({
+                        'Expert ID': e.expert_id,
+                        Attempts: e.attempts,
+                        'Consensus Score %': (e.Consensus_Score * 100).toFixed(1)
+                    }));
+                    const wsExpert = XLSX.utils.json_to_sheet(expertRows);
+                    XLSX.utils.book_append_sheet(wb, wsExpert, 'Expert Consensus');
+
+                    // Low Consensus Experts sheet (≤ LOW_THRESHOLD)
+                    const lowExperts = expertConsensus
+                        .filter(e => e.Consensus_Score <= LOW_THRESHOLD)
+                        .sort((a, b) => a.Consensus_Score - b.Consensus_Score)
+                        .map(e => ({
+                            'Expert ID': e.expert_id,
+                            Attempts: e.attempts,
+                            'Consensus Score %': (e.Consensus_Score * 100).toFixed(1)
+                        }));
+
+                    if (lowExperts.length > 0) {
+                        const wsLowExperts = XLSX.utils.json_to_sheet(lowExperts);
+                        XLSX.utils.book_append_sheet(wb, wsLowExperts, 'Low Consensus Experts');
+                    }
+                }
+
+                // Task Consensus sheet (all tasks)
+                if (taskConsensus && taskConsensus.length > 0) {
+                    const sample = taskConsensus[0];
+                    const rateCols = Object.keys(sample).filter(
+                        k => k.endsWith('_rate') && k !== 'overall_consensus'
+                    );
+
+                    const taskRows = taskConsensus.map(t => {
+                        const row = {
+                            'Task ID': t.task_id,
+                            Attempts: t.attempts,
+                            'Overall Consensus %': (t.overall_consensus * 100).toFixed(1)
+                        };
+                        rateCols.forEach(col => {
+                            const questionName = col.replace(/_rate$/, '');
+                            const val = t[col];
+                            row[`${questionName} Consensus %`] =
+                                val != null ? (val * 100).toFixed(1) : '';
+                        });
+                        return row;
+                    });
+
+                    const wsTasks = XLSX.utils.json_to_sheet(taskRows);
+                    XLSX.utils.book_append_sheet(wb, wsTasks, 'Task Consensus');
+
+                    // Low Consensus Tasks sheet (≤ LOW_THRESHOLD)
+                    const lowTaskRows = taskConsensus
+                        .filter(t => t.overall_consensus <= LOW_THRESHOLD)
+                        .sort((a, b) => a.overall_consensus - b.overall_consensus)
+                        .map(t => {
+                            const row = {
+                                'Task ID': t.task_id,
+                                Attempts: t.attempts,
+                                'Overall Consensus %': (t.overall_consensus * 100).toFixed(1)
+                            };
+                            rateCols.forEach(col => {
+                                const questionName = col.replace(/_rate$/, '');
+                                const val = t[col];
+                                row[`${questionName} Consensus %`] =
+                                    val != null ? (val * 100).toFixed(1) : '';
+                            });
+                            return row;
+                        });
+
+                    if (lowTaskRows.length > 0) {
+                        const wsLowTasks = XLSX.utils.json_to_sheet(lowTaskRows);
+                        XLSX.utils.book_append_sheet(wb, wsLowTasks, 'Low Consensus Tasks');
+                    }
+                }
+
+                // Question Stats sheet (all questions)
+                if (questionStats && questionStats.length > 0) {
+                    const qRows = questionStats.map(q => ({
+                        Question: q.question,
+                        'Consensus %': (q.consensus * 100).toFixed(1),
+                        'Disagreement %': (q.consensus_disagreement_rate * 100).toFixed(1)
+                    }));
+                    const wsQuestions = XLSX.utils.json_to_sheet(qRows);
+                    XLSX.utils.book_append_sheet(wb, wsQuestions, 'Question Stats');
+
+                    // Low Consensus Questions sheet (≤ LOW_THRESHOLD)
+                    const lowQuestions = questionStats
+                        .filter(q => q.consensus <= LOW_THRESHOLD)
+                        .sort((a, b) => a.consensus - b.consensus)
+                        .map(q => ({
+                            Question: q.question,
+                            'Consensus %': (q.consensus * 100).toFixed(1),
+                            'Disagreement %': (q.consensus_disagreement_rate * 100).toFixed(1)
+                        }));
+
+                    if (lowQuestions.length > 0) {
+                        const wsLowQuestions = XLSX.utils.json_to_sheet(lowQuestions);
+                        XLSX.utils.book_append_sheet(
+                            wb,
+                            wsLowQuestions,
+                            'Low Consensus Questions'
+                        );
+                    }
+                }
+
+                // (Optional) Raw records sheet – no qualityScore here
+                if (processedData && processedData.length > 0) {
+                    const rawRows = processedData.slice(0, 10000).map(r => ({
+                        Date: r.date || '',
+                        Expert: r.expertId,
+                        Status: r.status,
+                        Score: r.score,
+                        Category: r.category || '',
+                        Reviewer: r.reviewer || '',
+                        Excluded: r.isExcluded ? 'Yes' : 'No'
+                    }));
+                    const wsRaw = XLSX.utils.json_to_sheet(rawRows);
+                    XLSX.utils.book_append_sheet(wb, wsRaw, 'Raw Records');
+                }
+
+                XLSX.writeFile(
+                    wb,
+                    `${fileName.replace(/\.[^.]+$/, '')}-consensus-dashboard-export.xlsx`
+                );
+            } else {
+                // === ORIGINAL QUALITY/APPROVAL EXPORT ===
+
+                // Summary sheet
+                const summaryData = [
+                    ['QA Dashboard Summary Report'],
+                    ['Generated', new Date().toLocaleString()],
+                    ['Source File', fileName],
+                    [''],
+                    ['Key Metrics'],
+                    ['Total Records', metrics.total],
+                    ['Valid Records', metrics.totalValid],
+                    ['Excluded', metrics.excluded],
+                    ['Approval Rate', `${metrics.approvalRate.toFixed(1)}%`],
+                    ['Defect Rate', `${metrics.defectRate.toFixed(1)}%`],
+                    ['Pass Count', metrics.passCount],
+                    ['Minor Issues', metrics.minorCount],
+                    ['Fail Count', metrics.failCount],
+                    [''],
+                    ['Coverage'],
+                    ['Unique Experts', metrics.uniqueExperts],
+                    ['Categories', metrics.uniqueCategories],
+                    ['Reviewers', metrics.uniqueReviewers]
+                ];
+                if (metrics.avgQuality !== null) {
+                    summaryData.push([
+                        'Average Quality Score',
+                        `${metrics.avgQuality.toFixed(1)}%`
+                    ]);
+                }
+                const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+                XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+                // Expert Performance sheet
+                if (expertPerformance.length > 0) {
+                    const wsExpert = XLSX.utils.json_to_sheet(expertPerformance);
+                    XLSX.utils.book_append_sheet(wb, wsExpert, 'Expert Performance');
+                }
+
+                // Category Breakdown sheet
+                if (categoryBreakdown.length > 0) {
+                    const wsCategory = XLSX.utils.json_to_sheet(categoryBreakdown);
+                    XLSX.utils.book_append_sheet(wb, wsCategory, 'Category Breakdown');
+                }
+
+                // Reviewer Stats sheet
+                if (reviewerStats.length > 0) {
+                    const wsReviewer = XLSX.utils.json_to_sheet(reviewerStats);
+                    XLSX.utils.book_append_sheet(wb, wsReviewer, 'Reviewer Stats');
+                }
+
+                // Detailed Records sheet (limit to 10000 rows for performance)
+                const detailedForExport = processedData.slice(0, 10000).map(r => ({
+                    Date: r.date || '',
+                    Expert: r.expertId,
+                    Status: r.status,
+                    Score: r.score,
+                    Category: r.category || '',
+                    Reviewer: r.reviewer || '',
+                    Excluded: r.isExcluded ? 'Yes' : 'No',
+                    QualityScore:
+                        r.qualityScore !== null && r.qualityScore !== undefined
+                            ? r.qualityScore.toFixed(1)
+                            : ''
+                }));
+                const wsDetailed = XLSX.utils.json_to_sheet(detailedForExport);
+                XLSX.utils.book_append_sheet(wb, wsDetailed, 'Detailed Records');
+
+                XLSX.writeFile(
+                    wb,
+                    `${fileName.replace(/\.[^.]+$/, '')}-dashboard-export.xlsx`
+                );
             }
-            const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-            XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
-
-            // Expert Performance sheet
-            if (expertPerformance.length > 0) {
-                const wsExpert = XLSX.utils.json_to_sheet(expertPerformance);
-                XLSX.utils.book_append_sheet(wb, wsExpert, 'Expert Performance');
-            }
-
-            // Category Breakdown sheet
-            if (categoryBreakdown.length > 0) {
-                const wsCategory = XLSX.utils.json_to_sheet(categoryBreakdown);
-                XLSX.utils.book_append_sheet(wb, wsCategory, 'Category Breakdown');
-            }
-
-            // Reviewer Stats sheet
-            if (reviewerStats.length > 0) {
-                const wsReviewer = XLSX.utils.json_to_sheet(reviewerStats);
-                XLSX.utils.book_append_sheet(wb, wsReviewer, 'Reviewer Stats');
-            }
-
-            // Detailed Records sheet (limit to 10000 rows for performance)
-            const detailedForExport = processedData.slice(0, 10000).map(r => ({
-                Date: r.date || '',
-                Expert: r.expertId,
-                Status: r.status,
-                Score: r.score,
-                Category: r.category || '',
-                Reviewer: r.reviewer || '',
-                Excluded: r.isExcluded ? 'Yes' : 'No',
-                QualityScore: r.qualityScore !== null ? r.qualityScore.toFixed(1) : ''
-            }));
-            const wsDetailed = XLSX.utils.json_to_sheet(detailedForExport);
-            XLSX.utils.book_append_sheet(wb, wsDetailed, 'Detailed Records');
-
-            // Generate and download
-            XLSX.writeFile(wb, `${fileName.replace(/\.[^.]+$/, '')}-dashboard-export.xlsx`);
         } catch (error) {
             console.error('Export error:', error);
             alert('Export failed. Please try again.');
@@ -2056,15 +2363,23 @@ function ExportMenu({ metrics, expertPerformance, categoryBreakdown, reviewerSta
             >
                 <Download className="h-4 w-4" />
                 Export
-                <ChevronDown className={`h-3 w-3 transition-transform ${showMenu ? 'rotate-180' : ''}`} />
+                <ChevronDown
+                    className={`h-3 w-3 transition-transform ${showMenu ? 'rotate-180' : ''
+                        }`}
+                />
             </button>
 
             {showMenu && (
                 <>
-                    <div className="fixed inset-0 z-[100]" onClick={() => setShowMenu(false)} />
+                    <div
+                        className="fixed inset-0 z-[100]"
+                        onClick={() => setShowMenu(false)}
+                    />
                     <div className="absolute right-0 top-full mt-2 w-72 bg-slate-800 border border-white/10 rounded-xl shadow-2xl z-[101] overflow-hidden">
                         <div className="p-3 border-b border-white/10 bg-white/5">
-                            <span className="text-sm font-medium text-white">Export Dashboard Data</span>
+                            <span className="text-sm font-medium text-white">
+                                Export Dashboard Data
+                            </span>
                         </div>
 
                         <div className="p-2">
@@ -2072,80 +2387,90 @@ function ExportMenu({ metrics, expertPerformance, categoryBreakdown, reviewerSta
                             <button
                                 onClick={exportAllToExcel}
                                 disabled={exporting}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-white/10 transition-colors group"
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-left text-slate-100 hover:bg-white/10 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                                    <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
+                                    <FileSpreadsheet className="h-4 w-4" />
                                 </div>
-                                <div className="flex-1">
-                                    <div className="text-sm font-medium text-white group-hover:text-emerald-300">
-                                        {exporting ? 'Exporting...' : 'Export All (Excel)'}
-                                    </div>
-                                    <div className="text-xs text-slate-500">Complete workbook with all data</div>
-                                </div>
+                                <span>
+                                    {isConsensusExport
+                                        ? 'Consensus Workbook (Excel)'
+                                        : 'Full Workbook (Excel)'}
+                                </span>
                             </button>
 
-                            <div className="my-2 border-t border-white/10" />
+                            <div className="h-px bg-white/10 my-2" />
 
-                            <div className="text-xs text-slate-500 px-3 py-1 uppercase tracking-wider">Individual Exports</div>
-
+                            {/* CSV / Markdown exports */}
                             <button
-                                onClick={() => { exportSummary(); setShowMenu(false); }}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-white/10 transition-colors"
+                                onClick={exportSummary}
+                                disabled={exporting}
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-left text-slate-100 hover:bg-white/10 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
-                                <FileText className="h-4 w-4 text-indigo-400" />
-                                <div className="flex-1">
-                                    <div className="text-sm text-white">Summary Report</div>
-                                    <div className="text-xs text-slate-500">Markdown format</div>
+                                <div className="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center">
+                                    <FileText className="h-4 w-4" />
                                 </div>
-                            </button>
-
-                            <button
-                                onClick={() => { exportExpertData(); setShowMenu(false); }}
-                                disabled={expertPerformance.length === 0}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-white/10 transition-colors disabled:opacity-50"
-                            >
-                                <Users className="h-4 w-4 text-cyan-400" />
-                                <div className="flex-1">
-                                    <div className="text-sm text-white">Expert Performance</div>
-                                    <div className="text-xs text-slate-500">{expertPerformance.length} experts (CSV)</div>
-                                </div>
+                                <span>
+                                    {isConsensusExport
+                                        ? 'Consensus Summary (Markdown)'
+                                        : 'Summary (Markdown)'}
+                                </span>
                             </button>
 
                             <button
-                                onClick={() => { exportCategoryData(); setShowMenu(false); }}
-                                disabled={categoryBreakdown.length === 0}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-white/10 transition-colors disabled:opacity-50"
+                                onClick={exportExpertData}
+                                disabled={exporting}
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-left text-slate-100 hover:bg-white/10 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
-                                <Layers className="h-4 w-4 text-purple-400" />
-                                <div className="flex-1">
-                                    <div className="text-sm text-white">Category Breakdown</div>
-                                    <div className="text-xs text-slate-500">{categoryBreakdown.length} categories (CSV)</div>
+                                <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                                    <Users className="h-4 w-4" />
                                 </div>
+                                <span>
+                                    {isConsensusExport
+                                        ? 'Expert Consensus (CSV)'
+                                        : 'Expert Performance (CSV)'}
+                                </span>
                             </button>
 
-                            <button
-                                onClick={() => { exportReviewerData(); setShowMenu(false); }}
-                                disabled={reviewerStats.length === 0}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-white/10 transition-colors disabled:opacity-50"
-                            >
-                                <UserCheck className="h-4 w-4 text-amber-400" />
-                                <div className="flex-1">
-                                    <div className="text-sm text-white">Reviewer Statistics</div>
-                                    <div className="text-xs text-slate-500">{reviewerStats.length} reviewers (CSV)</div>
-                                </div>
-                            </button>
+                            {!isConsensusExport && (
+                                <>
+                                    <button
+                                        onClick={exportCategoryData}
+                                        disabled={exporting}
+                                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-left text-slate-100 hover:bg-white/10 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                                            <PieChart className="h-4 w-4" />
+                                        </div>
+                                        <span>Category Breakdown (CSV)</span>
+                                    </button>
+
+                                    <button
+                                        onClick={exportReviewerData}
+                                        disabled={exporting}
+                                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-left text-slate-100 hover:bg-white/10 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center">
+                                            <UserCheck className="h-4 w-4" />
+                                        </div>
+                                        <span>Reviewer Stats (CSV)</span>
+                                    </button>
+                                </>
+                            )}
 
                             <button
-                                onClick={() => { exportDetailedData(); setShowMenu(false); }}
-                                disabled={!processedData || processedData.length === 0}
-                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-white/10 transition-colors disabled:opacity-50"
+                                onClick={exportDetailedData}
+                                disabled={exporting}
+                                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-left text-slate-100 hover:bg-white/10 disabled:opacity-60 disabled:cursor-not-allowed mt-1"
                             >
-                                <Table2 className="h-4 w-4 text-rose-400" />
-                                <div className="flex-1">
-                                    <div className="text-sm text-white">Detailed Records</div>
-                                    <div className="text-xs text-slate-500">Up to 10,000 records (CSV)</div>
+                                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                                    <Table className="h-4 w-4" />
                                 </div>
+                                <span>
+                                    {isConsensusExport
+                                        ? 'Consensus Tasks (CSV)'
+                                        : 'Detailed Records (CSV)'}
+                                </span>
                             </button>
                         </div>
                     </div>
@@ -2154,6 +2479,7 @@ function ExportMenu({ metrics, expertPerformance, categoryBreakdown, reviewerSta
         </div>
     );
 }
+
 
 // Chat Panel Component - Production
 // Chat Panel Component - Production
@@ -5156,8 +5482,11 @@ export default function QADashboardGenerator() {
                                     reviewerStats={reviewerStats}
                                     processedData={processedData}
                                     config={config}
-                                    fileName={file?.name || 'qa-dashboard'}
+                                    fileName={file?.name || 'generated-dashboard-data'}
+                                    consensusMetrics={consensusMetrics}
+                                    isConsensusOnlyMode={isConsensusOnlyMode}
                                 />
+
                                 {/* Chat Button */}
                                 <button
                                     onClick={() => { setShowChat(true); setChatMinimized(false); }}
