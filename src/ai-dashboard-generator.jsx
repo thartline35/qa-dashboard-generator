@@ -5489,14 +5489,14 @@ export default function QADashboardGenerator() {
                 'Quality %': data.qualityScores.length > 0
                     ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length : null
             };
-            if (config.customExpertColumns && config.customExpertColumns.length > 0) {
+            if (config?.customExpertColumns && config.customExpertColumns.length > 0) {
                 config.customExpertColumns.forEach(colDef => {
                     row[colDef.name] = computeCustomColumnValue(rowsByExpert[expert], colDef);
                 });
             }
             return row;
         }).sort((a, b) => b.Total - a.Total);
-    }, [filteredData, config.customExpertColumns, computeCustomColumnValue]);
+    }, [filteredData, config?.customExpertColumns, computeCustomColumnValue]);
 
     // Category breakdown
     const categoryBreakdown = useMemo(() => {
@@ -5535,14 +5535,14 @@ export default function QADashboardGenerator() {
                     ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
                     : null
             };
-            if (config.customCategoryColumns && config.customCategoryColumns.length > 0) {
+            if (config?.customCategoryColumns && config.customCategoryColumns.length > 0) {
                 config.customCategoryColumns.forEach(colDef => {
                     row[colDef.name] = computeCustomColumnValue(rowsByCategory[cat], colDef);
                 });
             }
             return row;
         }).sort((a, b) => b.Count - a.Count);
-    }, [filteredData, config.customCategoryColumns, computeCustomColumnValue]);
+    }, [filteredData, config?.customCategoryColumns, computeCustomColumnValue]);
 
     // Date range calculation
     const dateRange = useMemo(() => {
@@ -5669,14 +5669,14 @@ export default function QADashboardGenerator() {
                     ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
                     : null
             };
-            if (config.customReviewerColumns && config.customReviewerColumns.length > 0) {
+            if (config?.customReviewerColumns && config.customReviewerColumns.length > 0) {
                 config.customReviewerColumns.forEach(colDef => {
                     row[colDef.name] = computeCustomColumnValue(rowsByReviewer[reviewer], colDef);
                 });
             }
             return row;
         }).sort((a, b) => b['Total Reviews'] - a['Total Reviews']);
-    }, [filteredData, config.customReviewerColumns, computeCustomColumnValue]);
+    }, [filteredData, config?.customReviewerColumns, computeCustomColumnValue]);
 
     // Chart data
     const statusDistribution = useMemo(() => {
