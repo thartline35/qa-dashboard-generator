@@ -550,8 +550,9 @@ function LandingPage({ onGetStarted }) {
 // Shows currently active filters with ability to clear them
 // ========================================================
 function ActiveFiltersBar({ filters, onClearFilter, onClearAll, dateRange }) {
+    const hasCustomFilters = filters.custom && Object.values(filters.custom).some(v => v !== null && v !== undefined);
     const hasFilters = filters.expert || filters.category || filters.reviewer ||
-        filters.status || filters.taskId || filters.dateRange.start || filters.dateRange.end;
+        filters.status || filters.taskId || filters.dateRange.start || filters.dateRange.end || hasCustomFilters;
 
     if (!hasFilters) return null;
 
@@ -622,6 +623,17 @@ function ActiveFiltersBar({ filters, onClearFilter, onClearAll, dateRange }) {
                         </button>
                     </span>
                 )}
+                {filters.custom && Object.entries(filters.custom).map(([field, value]) => {
+                    if (value === null || value === undefined) return null;
+                    return (
+                        <span key={field} className="inline-flex items-center gap-2 px-3 py-1.5 bg-pink-500/20 border border-pink-500/40 rounded-lg text-sm text-pink-300">
+                            {field}: {String(value).length > 20 ? String(value).substring(0, 17) + '...' : value}
+                            <button onClick={() => onClearFilter(`custom.${field}`)} className="hover:text-white">
+                                <X className="h-3 w-3" />
+                            </button>
+                        </span>
+                    );
+                })}
             </div>
         </div>
     );
@@ -1521,6 +1533,152 @@ function MetricCard({ title, value, subtitle, icon: Icon, color = 'indigo', onCl
         </div>
     );
 }
+
+// ============================================================================
+// DYNAMIC DATA PROCESSING ENGINE
+// ============================================================================
+
+function processDataForDynamicTable(data, tableConfig) {
+    if (!data || !tableConfig || !tableConfig.columns) return [];
+    const { groupBy, columns, filter, sortBy, sortOrder = 'desc', limit } = tableConfig;
+    let filteredData = data;
+    if (filter) {
+        filteredData = data.filter(row => {
+            const rawValue = row.raw ? row.raw[filter.field] : row[filter.field];
+            if (filter.operator === 'in') return filter.values.includes(rawValue);
+            if (filter.operator === 'equals' || !filter.operator) return rawValue === filter.value;
+            if (filter.operator === 'not_equals') return rawValue !== filter.value;
+            return true;
+        });
+    }
+    const groups = {};
+    filteredData.forEach(row => {
+        const raw = row.raw || row;
+        const groupKey = groupBy ? String(raw[groupBy] || 'Unknown') : '_all';
+        if (!groups[groupKey]) groups[groupKey] = [];
+        groups[groupKey].push(row);
+    });
+    const result = Object.entries(groups).map(([groupKey, groupRows]) => {
+        const rowData = {};
+        columns.forEach(col => {
+            const { name, type, field, filter: colFilter, format } = col;
+            let colData = groupRows;
+            if (colFilter) {
+                colData = groupRows.filter(row => {
+                    const raw = row.raw || row;
+                    const val = raw[colFilter.field];
+                    if (colFilter.operator === 'in') return colFilter.values.includes(val);
+                    if (colFilter.operator === 'equals' || !colFilter.operator) return val === colFilter.value;
+                    return true;
+                });
+            }
+            switch (type) {
+                case 'group_key': rowData[name] = groupKey; break;
+                case 'count': case 'count_where': rowData[name] = colData.length; break;
+                case 'sum': rowData[name] = colData.reduce((acc, row) => acc + (parseFloat((row.raw || row)[field]) || 0), 0); break;
+                case 'avg': { const nums = colData.map(row => parseFloat((row.raw || row)[field])).filter(n => !isNaN(n)); rowData[name] = nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0; break; }
+                case 'concat_unique': { const uv = {}; colData.forEach(row => { const v = (row.raw || row)[field]; if (v != null && v !== '') uv[v] = (uv[v] || 0) + 1; }); rowData[name] = Object.entries(uv).sort((a, b) => b[1] - a[1]).map(([v, c]) => `${v}: ${c}`).join(', ') || '-'; break; }
+                case 'list_unique': { const u = new Set(); colData.forEach(row => { const v = (row.raw || row)[field]; if (v != null && v !== '') u.add(v); }); rowData[name] = Array.from(u).join(', ') || '-'; break; }
+                case 'percentage': rowData[name] = groupRows.length > 0 ? (colData.length / groupRows.length) * 100 : 0; break;
+                default: rowData[name] = '-';
+            }
+            if (format === 'percentage' && typeof rowData[name] === 'number') rowData[name] = rowData[name].toFixed(1) + '%';
+        });
+        return rowData;
+    });
+    if (sortBy) result.sort((a, b) => { let aVal = a[sortBy], bVal = b[sortBy]; if (typeof aVal === 'string' && aVal.endsWith('%')) { aVal = parseFloat(aVal); bVal = parseFloat(bVal); } return sortOrder === 'asc' ? (aVal > bVal ? 1 : -1) : (bVal > aVal ? 1 : -1); });
+    return limit > 0 ? result.slice(0, limit) : result;
+}
+
+function processDataForDynamicChart(data, chartConfig) {
+    if (!data || !chartConfig) return [];
+    const { xAxis, yAxis, filter, groupBy } = chartConfig;
+    let filteredData = data;
+    if (filter) { filteredData = data.filter(row => { const val = (row.raw || row)[filter.field]; return filter.operator === 'equals' || !filter.operator ? val === filter.value : true; }); }
+    const xField = xAxis?.field || groupBy;
+    if (!xField) return [];
+    const groups = {};
+    filteredData.forEach(row => { const xVal = String((row.raw || row)[xField] || 'Unknown'); if (!groups[xVal]) groups[xVal] = []; groups[xVal].push(row); });
+    return Object.entries(groups).map(([xVal, rows]) => {
+        const point = { name: xVal };
+        const yAgg = yAxis?.aggregation || 'count';
+        if (yAgg === 'count') point.value = rows.length;
+        else if (yAgg === 'sum' && yAxis?.field) point.value = rows.reduce((acc, r) => acc + (parseFloat((r.raw || r)[yAxis.field]) || 0), 0);
+        else if (yAgg === 'avg' && yAxis?.field) { const nums = rows.map(r => parseFloat((r.raw || r)[yAxis.field])).filter(n => !isNaN(n)); point.value = nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0; }
+        return point;
+    }).sort((a, b) => b.value - a.value);
+}
+
+function DynamicChart({ data, chartConfig, colors }) {
+    const chartData = useMemo(() => processDataForDynamicChart(data, chartConfig), [data, chartConfig]);
+    if (!chartData || chartData.length === 0) return (<div className="bg-slate-900/50 backdrop-blur rounded-2xl p-6 border border-white/10"><h3 className="text-lg font-semibold text-white mb-4">{chartConfig.title || 'Chart'}</h3><div className="text-slate-400 text-center py-8">No data available</div></div>);
+    const chartColors = colors || ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6'];
+    const { type = 'bar', title } = chartConfig;
+    const renderChart = () => {
+        switch (type) {
+            case 'pie': case 'donut': return (<ResponsiveContainer width="100%" height={300}><PieChart><Pie data={chartData} cx="50%" cy="50%" innerRadius={type === 'donut' ? 60 : 0} outerRadius={100} dataKey="value" nameKey="name" label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>{chartData.map((e, i) => (<Cell key={i} fill={chartColors[i % chartColors.length]} />))}</Pie><Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} /></PieChart></ResponsiveContainer>);
+            case 'line': return (<ResponsiveContainer width="100%" height={300}><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" /><XAxis dataKey="name" stroke="#64748b" /><YAxis stroke="#64748b" /><Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} /><Line type="monotone" dataKey="value" stroke={chartColors[0]} strokeWidth={2} /></LineChart></ResponsiveContainer>);
+            default: return (<ResponsiveContainer width="100%" height={300}><BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" /><XAxis dataKey="name" stroke="#64748b" /><YAxis stroke="#64748b" /><Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} /><Bar dataKey="value" fill={chartColors[0]} radius={[4, 4, 0, 0]}>{chartData.map((e, i) => (<Cell key={i} fill={chartColors[i % chartColors.length]} />))}</Bar></BarChart></ResponsiveContainer>);
+        }
+    };
+    return (<div className="bg-slate-900/50 backdrop-blur rounded-2xl p-6 border border-white/10"><h3 className="text-lg font-semibold text-white mb-4">{title || 'Chart'}</h3>{renderChart()}</div>);
+}
+
+function DynamicTable({ data, tableConfig }) {
+    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'desc' });
+    const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const tableData = useMemo(() => processDataForDynamicTable(data, tableConfig), [data, tableConfig]);
+    const columns = tableConfig.columns?.map(c => c.name) || [];
+    const sortedData = useMemo(() => { if (!sortConfig.key) return tableData; return [...tableData].sort((a, b) => { let aVal = a[sortConfig.key], bVal = b[sortConfig.key]; return sortConfig.direction === 'asc' ? (aVal > bVal ? 1 : -1) : (bVal > aVal ? 1 : -1); }); }, [tableData, sortConfig]);
+    const filteredData = useMemo(() => { if (!searchTerm) return sortedData; return sortedData.filter(row => Object.values(row).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))); }, [sortedData, searchTerm]);
+    const paginatedData = filteredData.slice((currentPage - 1) * 25, currentPage * 25);
+    const totalPages = Math.ceil(filteredData.length / 25);
+    if (tableData.length === 0) return (<div className="bg-slate-900/50 backdrop-blur rounded-2xl p-6 border border-white/10"><h3 className="text-lg font-semibold text-white mb-4">{tableConfig.title || 'Table'}</h3><div className="text-slate-400 text-center py-8">No data available</div></div>);
+    return (
+        <div className="bg-slate-900/50 backdrop-blur rounded-2xl border border-white/10 overflow-hidden">
+            <div className="p-4 border-b border-white/10 flex justify-between items-center flex-wrap gap-3">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2"><Table2 className="h-5 w-5 text-indigo-400" />{tableConfig.title || 'Table'}<span className="text-sm font-normal text-slate-400">({filteredData.length})</span></h3>
+                <div className="relative"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" /><input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 text-sm" /></div>
+            </div>
+            <div className="overflow-x-auto"><table className="w-full"><thead><tr className="bg-white/5">{columns.map(col => (<th key={col} onClick={() => setSortConfig(p => ({ key: col, direction: p.key === col && p.direction === 'desc' ? 'asc' : 'desc' }))} className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase cursor-pointer hover:bg-white/5"><div className="flex items-center gap-1">{col}{sortConfig.key === col && (sortConfig.direction === 'desc' ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />)}</div></th>))}</tr></thead><tbody className="divide-y divide-white/5">{paginatedData.map((row, i) => (<tr key={i} className="hover:bg-white/5">{columns.map(col => (<td key={col} className="px-4 py-3 text-sm text-slate-300 max-w-xs truncate">{row[col]}</td>))}</tr>))}</tbody></table></div>
+            {totalPages > 1 && (<div className="p-4 border-t border-white/10 flex justify-between items-center"><span className="text-sm text-slate-400">Page {currentPage} of {totalPages}</span><div className="flex gap-2"><button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 bg-white/10 rounded-lg text-sm disabled:opacity-50"><ChevronLeft className="h-4 w-4" /></button><button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 bg-white/10 rounded-lg text-sm disabled:opacity-50"><ChevronRight className="h-4 w-4" /></button></div></div>)}
+        </div>
+    );
+}
+
+function DynamicFilterBar({ data, filterConfigs, activeFilters, onFilterChange }) {
+    if (!filterConfigs || filterConfigs.length === 0) return null;
+    const filterOptions = useMemo(() => { const opts = {}; filterConfigs.forEach(f => { const vals = new Set(); data?.forEach(row => { const v = row.raw?.[f.field] ?? row[f.field]; if (v != null && v !== '') vals.add(String(v)); }); opts[f.field] = Array.from(vals).sort(); }); return opts; }, [data, filterConfigs]);
+    return (<div className="bg-slate-900/50 backdrop-blur rounded-xl border border-white/10 p-4"><div className="flex items-center gap-2 mb-3"><Filter className="h-4 w-4 text-purple-400" /><span className="text-sm font-medium text-white">Custom Filters</span></div><div className="flex flex-wrap gap-3">{filterConfigs.map(f => (<div key={f.field} className="flex flex-col gap-1"><label className="text-xs text-slate-400">{f.label || f.field}</label><select value={activeFilters.custom?.[f.field] || ''} onChange={(e) => onFilterChange(f.field, e.target.value || null)} className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white min-w-[150px]"><option value="">All</option>{filterOptions[f.field]?.map(v => (<option key={v} value={v}>{v}</option>))}</select></div>))}</div></div>);
+}
+
+function DynamicMetricCard({ data, metricConfig }) {
+    const calculatedValue = useMemo(() => {
+        if (!data || data.length === 0) return null;
+        const { type, field, filter: mf, format } = metricConfig;
+        let fd = data;
+        if (mf) { fd = data.filter(row => { const v = (row.raw || row)[mf.field] ?? row[mf.field]; return mf.operator === 'equals' || !mf.operator ? v === mf.value : true; }); }
+        let value;
+        switch (type) {
+            case 'count': value = fd.length; break;
+            case 'count_unique': { const u = new Set(); fd.forEach(row => { const v = (row.raw || row)[field]; if (v != null) u.add(v); }); value = u.size; break; }
+            case 'sum': value = fd.reduce((acc, row) => acc + (parseFloat((row.raw || row)[field]) || 0), 0); break;
+            case 'avg': { const nums = fd.map(row => parseFloat((row.raw || row)[field])).filter(n => !isNaN(n)); value = nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0; break; }
+            case 'percentage': value = data.length > 0 ? (fd.length / data.length) * 100 : 0; break;
+            default: value = fd.length;
+        }
+        if (format === 'percentage') return `${value.toFixed(1)}%`;
+        if (format === 'decimal') return value.toFixed(2);
+        return Math.round(value).toLocaleString();
+    }, [data, metricConfig]);
+    const colors = { indigo: 'from-indigo-500 to-indigo-700', purple: 'from-purple-500 to-purple-700', emerald: 'from-emerald-500 to-emerald-700', rose: 'from-rose-500 to-rose-700', amber: 'from-amber-500 to-amber-700', cyan: 'from-cyan-500 to-cyan-700' };
+    return (<div className={`bg-gradient-to-br ${colors[metricConfig.color] || colors.purple} rounded-2xl p-5 text-white shadow-xl`}><div className="flex justify-between items-start mb-3"><div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center"><Sparkles className="h-5 w-5" /></div></div><div className="text-3xl font-bold mb-1">{calculatedValue ?? '-'}</div><div className="text-sm opacity-80">{metricConfig.name || 'Custom Metric'}</div></div>);
+}
+
+// ============================================================================
+// END DYNAMIC DATA PROCESSING ENGINE
+// ============================================================================
 
 // Data table component
 function DataTable({ data, title, columns, searchable = true, onRowClick, clickableColumn, activeValue }) {
@@ -2613,6 +2771,63 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
       - "Show projected future performance" → Cannot predict/fabricate future data
       - "Calculate ROI" → If cost/revenue columns don't exist, explain they need to be in the data
       
+      =======================================================================
+      DYNAMIC CAPABILITIES - CREATE CUSTOM VISUALIZATIONS & FILTERS
+      =======================================================================
+      
+      You can dynamically create tables, charts, filters, and metric cards using the schemas below.
+      Always use ACTUAL column names from Available Columns listed above.
+      
+      **CUSTOM TABLES (customTables array):**
+      {
+        "id": "unique_id",
+        "title": "Table Title",
+        "groupBy": "column_to_group_by",
+        "columns": [
+          { "name": "Display Name", "type": "group_key" },
+          { "name": "Count", "type": "count" },
+          { "name": "Avg Score", "type": "avg", "field": "score_column" },
+          { "name": "Errors", "type": "concat_unique", "field": "error_column", "filter": { "field": "status", "operator": "equals", "value": "fail" }}
+        ]
+      }
+      Column types: group_key, count, count_where, sum, avg, concat_unique, list_unique, percentage
+      
+      **CUSTOM CHARTS (customCharts array):**
+      {
+        "id": "unique_id",
+        "title": "Chart Title",
+        "type": "bar",  // bar, pie, donut, line, area, horizontal_bar
+        "groupBy": "column_to_group_by",
+        "xAxis": { "field": "column_name" },
+        "yAxis": { "aggregation": "count" }  // count, sum, avg
+      }
+      
+      **CUSTOM FILTERS (customFilters array):**
+      Creates dropdown filters that filter the entire dashboard.
+      { "field": "column_name", "label": "Display Label" }
+      
+      **CUSTOM METRICS (customMetrics array):**
+      Creates KPI cards with calculated values.
+      {
+        "id": "unique_id",
+        "name": "Metric Name",
+        "type": "count",  // count, count_unique, sum, avg, percentage
+        "field": "column_for_aggregation",
+        "filter": { "field": "status", "operator": "equals", "value": "fail" },
+        "color": "rose"  // indigo, purple, emerald, rose, amber, cyan
+      }
+      
+      **EXAMPLE - Add team lead filter and failed tasks metric:**
+      \`\`\`json
+      {
+        "action": "update_config",
+        "changes": {
+          "customFilters": [{ "field": "team_lead", "label": "Team Lead" }],
+          "customMetrics": [{ "id": "fails", "name": "Failed Tasks", "type": "count", "filter": { "field": "status", "operator": "equals", "value": "fail" }, "color": "rose" }]
+        }
+      }
+      \`\`\`
+      
       Your job: Help users extract maximum insights from their ACTUAL data through smart calculations, filters, groupings, and visualizations.`;
     };
 
@@ -2665,12 +2880,18 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
 
             // Check if response contains configuration changes
             const configUpdate = extractConfigUpdate(assistantResponse);
-            const hasChangesPayload = configUpdate && (configUpdate.action === 'update_config' || configUpdate.changes || configUpdate.customCharts || configUpdate.customCalculations);
+            const hasChangesPayload = configUpdate && (configUpdate.action === 'update_config' || configUpdate.changes || configUpdate.customCharts || configUpdate.customCalculations || configUpdate.customTables || configUpdate.customFilters || configUpdate.customMetrics || configUpdate.customExpertColumns || configUpdate.customCategoryColumns || configUpdate.customReviewerColumns);
             if (hasChangesPayload) {
                 const incomingChanges = {
                     ...(configUpdate?.changes || {}),
                     ...(configUpdate?.customCharts ? { customCharts: configUpdate.customCharts } : {}),
                     ...(configUpdate?.customCalculations ? { customCalculations: configUpdate.customCalculations } : {}),
+                    ...(configUpdate?.customTables ? { customTables: configUpdate.customTables } : {}),
+                    ...(configUpdate?.customFilters ? { customFilters: configUpdate.customFilters } : {}),
+                    ...(configUpdate?.customMetrics ? { customMetrics: configUpdate.customMetrics } : {}),
+                    ...(configUpdate?.customExpertColumns ? { customExpertColumns: configUpdate.customExpertColumns } : {}),
+                    ...(configUpdate?.customCategoryColumns ? { customCategoryColumns: configUpdate.customCategoryColumns } : {}),
+                    ...(configUpdate?.customReviewerColumns ? { customReviewerColumns: configUpdate.customReviewerColumns } : {}),
                 };
 
                 const allColumns = processedData && processedData.length > 0
@@ -3419,6 +3640,13 @@ function SetupWizard({ columns, sampleData, rawData = [], onComplete, onCancel }
             colorScheme: 'purple'
         },
         showTables: { expert: true, category: true, reviewer: true, detailed: true },
+        customTables: [],
+        customCharts: [],
+        customMetrics: [],
+        customFilters: [],
+        customExpertColumns: [],
+        customCategoryColumns: [],
+        customReviewerColumns: [],
     });
     // Skip quality threshold step (4) when only consensus is selected
     const onlyConsensus = config.metricNeeds.consensus &&
@@ -4515,7 +4743,8 @@ export default function QADashboardGenerator() {
         reviewer: null,
         status: null,
         dateRange: { start: null, end: null },
-        taskId: null
+        taskId: null,
+        custom: {}
     });
 
     // Parse a single file and return parsed data
@@ -5060,6 +5289,9 @@ export default function QADashboardGenerator() {
     const clearFilter = useCallback((filterKey) => {
         if (filterKey === 'dateRange') {
             setActiveFilters(prev => ({ ...prev, dateRange: { start: null, end: null } }));
+        } else if (filterKey.startsWith('custom.')) {
+            const customKey = filterKey.replace('custom.', '');
+            setActiveFilters(prev => ({ ...prev, custom: { ...prev.custom, [customKey]: null } }));
         } else {
             setActiveFilters(prev => ({ ...prev, [filterKey]: null }));
         }
@@ -5072,7 +5304,8 @@ export default function QADashboardGenerator() {
             reviewer: null,
             status: null,
             dateRange: { start: null, end: null },
-            taskId: null
+            taskId: null,
+            custom: {}
         });
     }, []);
 
@@ -5088,6 +5321,15 @@ export default function QADashboardGenerator() {
             if (activeFilters.taskId && r.taskId !== activeFilters.taskId) return false;
             if (activeFilters.dateRange.start && r.date && r.date < activeFilters.dateRange.start) return false;
             if (activeFilters.dateRange.end && r.date && r.date > activeFilters.dateRange.end) return false;
+            // Apply custom filters
+            if (activeFilters.custom && Object.keys(activeFilters.custom).length > 0) {
+                for (const [field, value] of Object.entries(activeFilters.custom)) {
+                    if (value !== null && value !== undefined) {
+                        const rowValue = r.raw?.[field] ?? r[field];
+                        if (String(rowValue) !== String(value)) return false;
+                    }
+                }
+            }
             return true;
         });
     }, [processedData, activeFilters]);
@@ -5143,13 +5385,75 @@ export default function QADashboardGenerator() {
     const minorLabel = 'Weak Pass';
     const failLabel = 'Fail';
 
+    // Helper to compute custom column values for a group of rows
+    const computeCustomColumnValue = useCallback((rows, colDef) => {
+        if (!rows || !colDef) return '-';
+        const { type, field, filter: colFilter, format } = colDef;
+        let colData = rows;
+        if (colFilter) {
+            colData = rows.filter(row => {
+                const raw = row.raw || row;
+                const val = raw[colFilter.field] ?? row[colFilter.field];
+                if (colFilter.operator === 'equals' || !colFilter.operator) return val === colFilter.value;
+                if (colFilter.operator === 'in') return colFilter.values?.includes(val);
+                return true;
+            });
+        }
+        let value;
+        switch (type) {
+            case 'count':
+            case 'count_where':
+                value = colData.length;
+                break;
+            case 'sum':
+                value = colData.reduce((acc, row) => acc + (parseFloat((row.raw || row)[field]) || 0), 0);
+                break;
+            case 'avg': {
+                const nums = colData.map(row => parseFloat((row.raw || row)[field])).filter(n => !isNaN(n));
+                value = nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
+                break;
+            }
+            case 'concat_unique': {
+                const uv = {};
+                colData.forEach(row => {
+                    const v = (row.raw || row)[field];
+                    if (v != null && v !== '') uv[v] = (uv[v] || 0) + 1;
+                });
+                value = Object.entries(uv).sort((a, b) => b[1] - a[1]).map(([v, c]) => `${v}: ${c}`).join(', ') || '-';
+                break;
+            }
+            case 'list_unique': {
+                const u = new Set();
+                colData.forEach(row => {
+                    const v = (row.raw || row)[field];
+                    if (v != null && v !== '') u.add(v);
+                });
+                value = Array.from(u).join(', ') || '-';
+                break;
+            }
+            case 'percentage':
+                value = rows.length > 0 ? (colData.length / rows.length) * 100 : 0;
+                break;
+            default:
+                value = colData.length;
+        }
+        if (format === 'percentage' && typeof value === 'number') return value.toFixed(1) + '%';
+        if (format === 'decimal' && typeof value === 'number') return value.toFixed(2);
+        return value;
+    }, []);
+
     // Expert performance
     const expertPerformance = useMemo(() => {
         if (!filteredData) return [];
         const byExpert = {};
+        const rowsByExpert = {};
         filteredData.forEach(r => {
-            if (!byExpert[r.expertId]) byExpert[r.expertId] = { total: 0, pass: 0, minor: 0, fail: 0, excluded: 0, qualityScores: [] };
+            if (!byExpert[r.expertId]) {
+                byExpert[r.expertId] = { total: 0, pass: 0, minor: 0, fail: 0, excluded: 0, qualityScores: [] };
+                rowsByExpert[r.expertId] = [];
+            }
             byExpert[r.expertId].total++;
+            rowsByExpert[r.expertId].push(r);
             if (r.isExcluded) byExpert[r.expertId].excluded++;
             else if (r.status === 'pass') byExpert[r.expertId].pass++;
             else if (r.status === 'minor') byExpert[r.expertId].minor++;
@@ -5159,7 +5463,7 @@ export default function QADashboardGenerator() {
 
         return Object.entries(byExpert).map(([expert, data]) => {
             const validTotal = data.total - data.excluded;
-            return {
+            const row = {
                 Expert: expert,
                 Total: data.total,
                 'Strong Pass': data.pass,
@@ -5171,16 +5475,27 @@ export default function QADashboardGenerator() {
                 'Quality %': data.qualityScores.length > 0
                     ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length : null
             };
+            if (config.customExpertColumns && config.customExpertColumns.length > 0) {
+                config.customExpertColumns.forEach(colDef => {
+                    row[colDef.name] = computeCustomColumnValue(rowsByExpert[expert], colDef);
+                });
+            }
+            return row;
         }).sort((a, b) => b.Total - a.Total);
-    }, [filteredData]);
+    }, [filteredData, config.customExpertColumns, computeCustomColumnValue]);
 
     // Category breakdown
     const categoryBreakdown = useMemo(() => {
         if (!filteredData) return [];
         const byCategory = {};
+        const rowsByCategory = {};
 
         filteredData.filter(r => r.category && !r.isExcluded).forEach(r => {
-            if (!byCategory[r.category]) byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
+            if (!byCategory[r.category]) {
+                byCategory[r.category] = { count: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
+                rowsByCategory[r.category] = [];
+            }
+            rowsByCategory[r.category].push(r);
 
             if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
                 byCategory[r.category].count++;
@@ -5193,19 +5508,27 @@ export default function QADashboardGenerator() {
             }
         });
 
-        return Object.entries(byCategory).map(([cat, data]) => ({
-            Category: cat,
-            Count: data.count,
-            'Strong Pass': data.pass,
-            'Weak Pass': data.minor,
-            Fail: data.fail,
-            'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,
-            'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0,
-            'Quality %': data.qualityScores.length > 0
-                ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
-                : null
-        })).sort((a, b) => b.Count - a.Count);
-    }, [filteredData]);
+        return Object.entries(byCategory).map(([cat, data]) => {
+            const row = {
+                Category: cat,
+                Count: data.count,
+                'Strong Pass': data.pass,
+                'Weak Pass': data.minor,
+                Fail: data.fail,
+                'Approval %': data.count > 0 ? ((data.pass + data.minor) / data.count) * 100 : 0,
+                'Defect %': data.count > 0 ? (data.fail / data.count) * 100 : 0,
+                'Quality %': data.qualityScores.length > 0
+                    ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
+                    : null
+            };
+            if (config.customCategoryColumns && config.customCategoryColumns.length > 0) {
+                config.customCategoryColumns.forEach(colDef => {
+                    row[colDef.name] = computeCustomColumnValue(rowsByCategory[cat], colDef);
+                });
+            }
+            return row;
+        }).sort((a, b) => b.Count - a.Count);
+    }, [filteredData, config.customCategoryColumns, computeCustomColumnValue]);
 
     // Date range calculation
     const dateRange = useMemo(() => {
@@ -5298,10 +5621,15 @@ export default function QADashboardGenerator() {
     const reviewerStats = useMemo(() => {
         if (!filteredData) return [];
         const byReviewer = {};
+        const rowsByReviewer = {};
 
         // Only count non-excluded records with valid status
         filteredData.filter(r => r.reviewer && !r.isExcluded).forEach(r => {
-            if (!byReviewer[r.reviewer]) byReviewer[r.reviewer] = { reviews: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
+            if (!byReviewer[r.reviewer]) {
+                byReviewer[r.reviewer] = { reviews: 0, pass: 0, minor: 0, fail: 0, qualityScores: [] };
+                rowsByReviewer[r.reviewer] = [];
+            }
+            rowsByReviewer[r.reviewer].push(r);
 
             if (r.status === 'pass' || r.status === 'minor' || r.status === 'fail') {
                 byReviewer[r.reviewer].reviews++;
@@ -5314,19 +5642,27 @@ export default function QADashboardGenerator() {
             }
         });
 
-        return Object.entries(byReviewer).map(([reviewer, data]) => ({
-            Reviewer: reviewer,
-            'Total Reviews': data.reviews,
-            'Strong Pass Given': data.pass,
-            'Weak Pass Given': data.minor,
-            'Fail Given': data.fail,
-            'Approval %': data.reviews > 0 ? ((data.pass + data.minor) / data.reviews) * 100 : 0,
-            'Fail %': data.reviews > 0 ? (data.fail / data.reviews) * 100 : 0,
-            'Quality %': data.qualityScores.length > 0
-                ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
-                : null
-        })).sort((a, b) => b['Total Reviews'] - a['Total Reviews']);
-    }, [filteredData]);
+        return Object.entries(byReviewer).map(([reviewer, data]) => {
+            const row = {
+                Reviewer: reviewer,
+                'Total Reviews': data.reviews,
+                'Strong Pass Given': data.pass,
+                'Weak Pass Given': data.minor,
+                'Fail Given': data.fail,
+                'Approval %': data.reviews > 0 ? ((data.pass + data.minor) / data.reviews) * 100 : 0,
+                'Fail %': data.reviews > 0 ? (data.fail / data.reviews) * 100 : 0,
+                'Quality %': data.qualityScores.length > 0
+                    ? data.qualityScores.reduce((a, b) => a + b, 0) / data.qualityScores.length
+                    : null
+            };
+            if (config.customReviewerColumns && config.customReviewerColumns.length > 0) {
+                config.customReviewerColumns.forEach(colDef => {
+                    row[colDef.name] = computeCustomColumnValue(rowsByReviewer[reviewer], colDef);
+                });
+            }
+            return row;
+        }).sort((a, b) => b['Total Reviews'] - a['Total Reviews']);
+    }, [filteredData, config.customReviewerColumns, computeCustomColumnValue]);
 
     // Chart data
     const statusDistribution = useMemo(() => {
@@ -5544,6 +5880,21 @@ export default function QADashboardGenerator() {
                         onClearAll={clearAllFilters}
                         dateRange={dateRange}
                     />
+                    
+                    {/* AI-Generated Custom Filters */}
+                    {config.customFilters && config.customFilters.length > 0 && (
+                        <DynamicFilterBar
+                            data={processedData}
+                            filterConfigs={config.customFilters}
+                            activeFilters={activeFilters}
+                            onFilterChange={(field, value) => {
+                                setActiveFilters(prev => ({
+                                    ...prev,
+                                    custom: { ...prev.custom, [field]: value }
+                                }));
+                            }}
+                        />
+                    )}
 
                     {/* Metrics */}
                     {/* Metrics */}
@@ -5580,6 +5931,15 @@ export default function QADashboardGenerator() {
                         {!isConsensusOnlyMode && config.metricNeeds?.quality && metrics.qualityApprovalCorrelation !== null && (
                             <MetricCard title="Quality vs Approval" value={metrics.qualityApprovalCorrelation.toFixed(2)} subtitle="correlation (r)" icon={Activity} color="rose" />
                         )}
+                        
+                        {/* AI-Generated Custom Metrics */}
+                        {config.customMetrics && config.customMetrics.map((metricConfig, idx) => (
+                            <DynamicMetricCard
+                                key={metricConfig.id || idx}
+                                data={filteredData}
+                                metricConfig={metricConfig}
+                            />
+                        ))}
                     </div>
 
                     {/* Consensus Metrics Panel (if enabled) */}
@@ -5749,35 +6109,84 @@ export default function QADashboardGenerator() {
                     )}
 
                     {/* Tables */}
-                    {!isConsensusOnlyMode && config.showTables.expert && expertPerformance.length > 0 && (
+                    {/* Expert Performance Table - show in QA mode OR when custom columns added in consensus mode */}
+                    {((!isConsensusOnlyMode && config.showTables.expert) || (isConsensusOnlyMode && config.customExpertColumns?.length > 0)) && expertPerformance.length > 0 && (
                         <DataTable
                             data={expertPerformance}
                             title="Expert Performance"
-                            columns={['Expert', 'Total', 'Strong Pass', 'Weak Pass', 'Fail', 'Approval %', 'Weak Pass %', 'Defect %', ...(metrics.avgQuality !== null ? ['Quality %'] : [])]}
+                            columns={isConsensusOnlyMode 
+                                ? ['Expert', 'Total', ...(config.customExpertColumns?.map(c => c.name) || [])]
+                                : ['Expert', 'Total', 'Strong Pass', 'Weak Pass', 'Fail', 'Approval %', 'Weak Pass %', 'Defect %', ...(metrics.avgQuality !== null ? ['Quality %'] : []), ...(config.customExpertColumns?.map(c => c.name) || [])]
+                            }
                             onRowClick={handleExpertClick}
                             clickableColumn="Expert"
                             activeValue={activeFilters.expert}
                         />
                     )}
+                    {/* Category Table - show in both modes */}
                     {config.showTables.category && categoryBreakdown.length > 0 && (
                         <DataTable
                             data={categoryBreakdown}
                             title="Category Breakdown"
-                            columns={['Category', 'Count', 'Strong Pass', 'Weak Pass', 'Fail', 'Approval %', 'Defect %', 'Quality %']}
+                            columns={isConsensusOnlyMode
+                                ? ['Category', 'Count', ...(config.customCategoryColumns?.map(c => c.name) || [])]
+                                : ['Category', 'Count', 'Strong Pass', 'Weak Pass', 'Fail', 'Approval %', 'Defect %', 'Quality %', ...(config.customCategoryColumns?.map(c => c.name) || [])]
+                            }
                             onRowClick={handleCategoryClick}
                             clickableColumn="Category"
                             activeValue={activeFilters.category}
                         />
                     )}
-                    {!isConsensusOnlyMode && config.showTables.reviewer && reviewerStats.length > 0 && (
+                    {/* Reviewer Statistics Table - show in QA mode OR when custom columns added in consensus mode */}
+                    {((!isConsensusOnlyMode && config.showTables.reviewer) || (isConsensusOnlyMode && config.customReviewerColumns?.length > 0)) && reviewerStats.length > 0 && (
                         <DataTable
                             data={reviewerStats}
                             title="Reviewer Statistics"
-                            columns={['Reviewer', 'Total Reviews', 'Strong Pass Given', 'Weak Pass Given', 'Fail Given', 'Approval %', 'Fail %', 'Quality %']}
+                            columns={isConsensusOnlyMode
+                                ? ['Reviewer', 'Total Reviews', ...(config.customReviewerColumns?.map(c => c.name) || [])]
+                                : ['Reviewer', 'Total Reviews', 'Strong Pass Given', 'Weak Pass Given', 'Fail Given', 'Approval %', 'Fail %', 'Quality %', ...(config.customReviewerColumns?.map(c => c.name) || [])]
+                            }
                             onRowClick={handleReviewerClick}
                             clickableColumn="Reviewer"
                             activeValue={activeFilters.reviewer}
                         />
+                    )}
+                    
+                    {/* AI-Generated Dynamic Charts */}
+                    {config.customCharts && config.customCharts.length > 0 && (
+                        <div className="space-y-6">
+                            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                                <Sparkles className="h-5 w-5 text-purple-400" />
+                                Custom Visualizations
+                            </h2>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {config.customCharts.map((chartConfig, idx) => (
+                                    <DynamicChart
+                                        key={chartConfig.id || idx}
+                                        data={processedData}
+                                        chartConfig={chartConfig}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* AI-Generated Dynamic Tables */}
+                    {config.customTables && config.customTables.length > 0 && (
+                        <div className="space-y-6">
+                            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                                <Sparkles className="h-5 w-5 text-purple-400" />
+                                Custom Tables
+                            </h2>
+                            {config.customTables.map((tableConfig, idx) => (
+                                <DynamicTable
+                                    key={tableConfig.id || idx}
+                                    data={processedData}
+                                    tableConfig={tableConfig}
+                                    activeFilters={activeFilters}
+                                />
+                            ))}
+                        </div>
                     )}
                 </main>
                 {/* Chat Panel */}
