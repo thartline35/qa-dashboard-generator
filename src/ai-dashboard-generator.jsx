@@ -1648,8 +1648,22 @@ function DynamicTable({ data, tableConfig }) {
 }
 
 function DynamicFilterBar({ data, filterConfigs, activeFilters, onFilterChange }) {
+    const filterOptions = useMemo(() => {
+        if (!filterConfigs || filterConfigs.length === 0) return {};
+        const opts = {};
+        filterConfigs.forEach(f => {
+            const vals = new Set();
+            data?.forEach(row => {
+                const v = row.raw?.[f.field] ?? row[f.field];
+                if (v != null && v !== '') vals.add(String(v));
+            });
+            opts[f.field] = Array.from(vals).sort();
+        });
+        return opts;
+    }, [data, filterConfigs]);
+    
     if (!filterConfigs || filterConfigs.length === 0) return null;
-    const filterOptions = useMemo(() => { const opts = {}; filterConfigs.forEach(f => { const vals = new Set(); data?.forEach(row => { const v = row.raw?.[f.field] ?? row[f.field]; if (v != null && v !== '') vals.add(String(v)); }); opts[f.field] = Array.from(vals).sort(); }); return opts; }, [data, filterConfigs]);
+    
     return (<div className="bg-slate-900/50 backdrop-blur rounded-xl border border-white/10 p-4"><div className="flex items-center gap-2 mb-3"><Filter className="h-4 w-4 text-purple-400" /><span className="text-sm font-medium text-white">Custom Filters</span></div><div className="flex flex-wrap gap-3">{filterConfigs.map(f => (<div key={f.field} className="flex flex-col gap-1"><label className="text-xs text-slate-400">{f.label || f.field}</label><select value={activeFilters.custom?.[f.field] || ''} onChange={(e) => onFilterChange(f.field, e.target.value || null)} className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white min-w-[150px]"><option value="">All</option>{filterOptions[f.field]?.map(v => (<option key={v} value={v}>{v}</option>))}</select></div>))}</div></div>);
 }
 
