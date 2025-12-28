@@ -1580,6 +1580,23 @@ function processDataForDynamicTable(data, tableConfig) {
                 case 'concat_unique': { const uv = {}; colData.forEach(row => { const v = (row.raw || row)[field]; if (v != null && v !== '') uv[v] = (uv[v] || 0) + 1; }); rowData[name] = Object.entries(uv).sort((a, b) => b[1] - a[1]).map(([v, c]) => `${v}: ${c}`).join(', ') || '-'; break; }
                 case 'list_unique': { const u = new Set(); colData.forEach(row => { const v = (row.raw || row)[field]; if (v != null && v !== '') u.add(v); }); rowData[name] = Array.from(u).join(', ') || '-'; break; }
                 case 'percentage': rowData[name] = groupRows.length > 0 ? (colData.length / groupRows.length) * 100 : 0; break;
+                    case 'consensus_rate': {
+                        // Calculate consensus: max(count per unique value) / total * 100
+                        const valueCounts = {};
+                        colData.forEach(row => {
+                            const v = (row.raw || row)[field];
+                            if (v != null && v !== '') {
+                                const key = String(v).toLowerCase().trim();
+                                valueCounts[key] = (valueCounts[key] || 0) + 1;
+                            }
+                        });
+                        const counts = Object.values(valueCounts);
+                        const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
+                        const total = colData.length;
+                        rowData[name] = total > 0 ? (maxCount / total) * 100 : 0;
+                        break;
+                    }
+                
                 default: rowData[name] = '-';
             }
             if (format === 'percentage' && typeof rowData[name] === 'number') rowData[name] = rowData[name].toFixed(1) + '%';
