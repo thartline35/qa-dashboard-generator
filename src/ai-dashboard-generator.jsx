@@ -2393,6 +2393,28 @@ function ExportMenu({
         );
     };
 
+    const exportCustomTables = () => {
+        if (!config.customTables || config.customTables.length === 0) {
+            alert('No custom tables to export.');
+            return;
+        }
+
+        config.customTables.forEach((tableConfig, idx) => {
+            const tableData = processDataForDynamicTable(processedData, tableConfig);
+            if (tableData.length > 0) {
+                const csv = generateCSV(tableData);
+                const tableName = (tableConfig.title || `custom-table-${idx + 1}`)
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '-');
+                downloadFile(
+                    csv,
+                    `${fileName.replace(/\.[^.]+$/, '')}-${tableName}.csv`,
+                    'text/csv'
+                );
+            }
+        });
+    };
+
     const exportAllToExcel = async () => {
         setExporting(true);
         try {
@@ -2538,6 +2560,18 @@ function ExportMenu({
                     }
                 }
 
+                // Custom Tables (consensus mode)
+                if (config.customTables && config.customTables.length > 0) {
+                    config.customTables.forEach((tableConfig, idx) => {
+                        const tableData = processDataForDynamicTable(processedData, tableConfig);
+                        if (tableData.length > 0) {
+                            const wsCustomTable = XLSX.utils.json_to_sheet(tableData);
+                            const sheetName = (tableConfig.title || `Custom Table ${idx + 1}`).substring(0, 31);
+                            XLSX.utils.book_append_sheet(wb, wsCustomTable, sheetName);
+                        }
+                    });
+                }
+
                 // (Optional) Raw records sheet – no qualityScore here
                 if (processedData && processedData.length > 0) {
                     const rawRows = processedData.slice(0, 10000).map(r => ({
@@ -2608,6 +2642,18 @@ function ExportMenu({
                     XLSX.utils.book_append_sheet(wb, wsReviewer, 'Reviewer Stats');
                 }
 
+                // Custom Tables (standard mode)
+                if (config.customTables && config.customTables.length > 0) {
+                    config.customTables.forEach((tableConfig, idx) => {
+                        const tableData = processDataForDynamicTable(processedData, tableConfig);
+                        if (tableData.length > 0) {
+                            const wsCustomTable = XLSX.utils.json_to_sheet(tableData);
+                            const sheetName = (tableConfig.title || `Custom Table ${idx + 1}`).substring(0, 31);
+                            XLSX.utils.book_append_sheet(wb, wsCustomTable, sheetName);
+                        }
+                    });
+                }
+
                 // Detailed Records sheet (limit to 10000 rows for performance)
                 const detailedForExport = processedData.slice(0, 10000).map(r => ({
                     Date: r.date || '',
@@ -2638,6 +2684,8 @@ function ExportMenu({
             setShowMenu(false);
         }
     };
+
+    const hasCustomTables = config.customTables && config.customTables.length > 0;
 
     return (
         <div className="relative">
@@ -2756,6 +2804,26 @@ function ExportMenu({
                                         : 'Detailed Records (CSV)'}
                                 </span>
                             </button>
+
+                            {/* Custom Tables Export */}
+                            {hasCustomTables && (
+                                <>
+                                    <div className="h-px bg-white/10 my-2" />
+                                    <button
+                                        onClick={exportCustomTables}
+                                        disabled={exporting}
+                                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-left text-slate-100 hover:bg-white/10 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-pink-500/20 flex items-center justify-center">
+                                            <Sparkles className="h-4 w-4" />
+                                        </div>
+                                        <span>Custom Tables (CSV)</span>
+                                        <span className="ml-auto text-xs text-slate-400">
+                                            {config.customTables.length} table{config.customTables.length > 1 ? 's' : ''}
+                                        </span>
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </>
