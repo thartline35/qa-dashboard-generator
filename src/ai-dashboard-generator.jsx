@@ -1650,12 +1650,6 @@ function DynamicTable({ data, tableConfig }) {
 
 function DynamicChart({ data, chartConfig }) {
     const chartData = useMemo(() => {
-        console.log('=== CHART DEBUG ===');
-        console.log('chartConfig:', chartConfig);
-        console.log('yAxis:', chartConfig?.yAxis);
-        console.log('aggregation:', chartConfig?.yAxis?.aggregation);
-        console.log('aggregation type:', typeof chartConfig?.yAxis?.aggregation);
-        
         if (!data || !chartConfig) return [];
         const { groupBy, yAxis } = chartConfig;
         const groups = {};
@@ -1673,29 +1667,28 @@ function DynamicChart({ data, chartConfig }) {
                     const valKey = String(val).toLowerCase().trim();
                     groups[key].valueCounts[valKey] = (groups[key].valueCounts[valKey] || 0) + 1;
                 }
+                const num = parseFloat(val);
+                if (!isNaN(num)) groups[key].values.push(num);
             }
         });
         
         const agg = String(yAxis?.aggregation || '').toLowerCase();
-        console.log('normalized aggregation:', agg);
-        console.log('is consensus_rate?:', agg === 'consensus_rate');
         
-        const result = Object.values(groups).map(g => {
+        return Object.values(groups).map(g => {
             let value;
             if (agg === 'consensus_rate') {
                 const counts = Object.values(g.valueCounts);
                 const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
                 value = g.total > 0 ? (maxCount / g.total) * 100 : 0;
-                console.log('CONSENSUS CALC:', g.name, 'maxCount:', maxCount, 'total:', g.total, 'value:', value);
+            } else if (agg === 'avg') {
+                value = g.values.length > 0 ? g.values.reduce((a, b) => a + b, 0) / g.values.length : 0;
+            } else if (agg === 'sum') {
+                value = g.values.reduce((a, b) => a + b, 0);
             } else {
                 value = g.total;
-                console.log('COUNT FALLBACK:', g.name, value);
             }
             return { name: g.name, value };
-        });
-        
-        console.log('chartData result:', result.slice(0, 3));
-        return result.sort((a, b) => a.name.localeCompare(b.name)).slice(0, 50);
+        }).sort((a, b) => a.name.localeCompare(b.name)).slice(0, 50);
     }, [data, chartConfig]);
 
     if (chartData.length === 0) return null;
@@ -1708,7 +1701,14 @@ function DynamicChart({ data, chartConfig }) {
         <div className="bg-slate-900/50 backdrop-blur rounded-2xl border border-white/10 p-6">
             <h3 className="text-lg font-semibold text-white mb-4">{chartConfig.title || 'Chart'}</h3>
             <ResponsiveContainer width="100%" height={300}>
-                {chartConfig.type === 'line' ? (
+                {chartConfig.type === 'pie' || chartConfig.type === 'donut' ? (
+                    <PieChart>
+                        <Pie data={chartData} cx="50%" cy="50%" innerRadius={chartConfig.type === 'donut' ? 60 : 0} outerRadius={100} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                            {chartData.map((_, idx) => <Cell key={idx} fill={COLORS[idx % COLORS.length]} />)}
+                        </Pie>
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} />
+                    </PieChart>
+                ) : chartConfig.type === 'line' ? (
                     <LineChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                         <XAxis dataKey="name" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
@@ -1716,6 +1716,28 @@ function DynamicChart({ data, chartConfig }) {
                         <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} formatter={(value) => isConsensus ? `${Number(value).toFixed(1)}%` : value} />
                         <Line type="monotone" dataKey="value" stroke="#6366F1" strokeWidth={2} dot={{ fill: '#6366F1' }} />
                     </LineChart>
+                ) : chartConfig.type === 'area' ? (
+                    <AreaChart data={chartData}>
+                        <defs>
+                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                        <XAxis dataKey="name" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+                        <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} domain={isConsensus ? [0, 100] : ['auto', 'auto']} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} formatter={(value) => isConsensus ? `${Number(value).toFixed(1)}%` : value} />
+                        <Area type="monotone" dataKey="value" stroke="#6366F1" fillOpacity={1} fill="url(#colorValue)" />
+                    </AreaChart>
+                ) : chartConfig.type === 'horizontal_bar' ? (
+                    <BarChart data={chartData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                        <XAxis type="number" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} domain={isConsensus ? [0, 100] : ['auto', 'auto']} />
+                        <YAxis type="category" dataKey="name" stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 11 }} width={120} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} formatter={(value) => isConsensus ? `${Number(value).toFixed(1)}%` : value} />
+                        <Bar dataKey="value" fill="#6366F1" radius={[0, 4, 4, 0]} />
+                    </BarChart>
                 ) : (
                     <BarChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
