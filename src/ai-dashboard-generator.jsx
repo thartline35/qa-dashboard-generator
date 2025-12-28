@@ -2891,14 +2891,30 @@ Column types: group_key, count, count_where, sum, avg, concat_unique, list_uniqu
 **consensus_rate**: Calculates the percentage of responses matching the most common answer. Use for measuring agreement/consensus on a field. Example: { "name": "Consensus %", "type": "consensus_rate", "field": "edit_visual_quality", "format": "percentage" }   
 
       **CUSTOM CHARTS (customCharts array):**
-      {
-        "id": "unique_id",
-        "title": "Chart Title",
-        "type": "bar",  // bar, pie, donut, line, area, horizontal_bar
-        "groupBy": "column_to_group_by",
-        "xAxis": { "field": "column_name" },
-        "yAxis": { "aggregation": "count" }  // count, sum, avg, consensus_rate
-      }
+{
+  "id": "unique_id",
+  "title": "Chart Title",
+  "type": "bar",  // bar, pie, donut, line, area, horizontal_bar
+  "groupBy": "column_to_group_by",
+  "xAxis": { "field": "column_name" },
+  "yAxis": { "aggregation": "count", "field": "column_name" }
+}
+
+**Chart yAxis aggregations:** count, sum, avg, consensus_rate
+- **count**: Total records per group (field optional)
+- **sum**: Sum of numeric field values (requires field)
+- **avg**: Average of numeric field values (requires field)
+- **consensus_rate**: Percentage of responses matching the most common answer (requires field). Shows 0-100%.
+
+**consensus_rate chart example:**
+{
+  "id": "consensus_timeline",
+  "title": "Edit Visual Quality - Consensus Rate Over Time",
+  "type": "line",
+  "groupBy": "review_ds",
+  "xAxis": { "field": "review_ds" },
+  "yAxis": { "aggregation": "consensus_rate", "field": "edit_visual_quality" }
+}
       
       **CUSTOM FILTERS (customFilters array):**
       Creates dropdown filters that filter the entire dashboard.
