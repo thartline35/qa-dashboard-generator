@@ -2872,8 +2872,9 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
           { "name": "Errors", "type": "concat_unique", "field": "error_column", "filter": { "field": "status", "operator": "equals", "value": "fail" }}
         ]
       }
-      Column types: group_key, count, count_where, sum, avg, concat_unique, list_unique, percentage
-      
+Column types: group_key, count, count_where, sum, avg, concat_unique, list_unique, percentage, consensus_rate
+**consensus_rate**: Calculates the percentage of responses matching the most common answer. Use for measuring agreement/consensus on a field. Example: { "name": "Consensus %", "type": "consensus_rate", "field": "edit_visual_quality", "format": "percentage" }   
+
       **CUSTOM CHARTS (customCharts array):**
       {
         "id": "unique_id",
