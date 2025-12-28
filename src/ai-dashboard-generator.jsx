@@ -1609,38 +1609,73 @@ function processDataForDynamicTable(data, tableConfig) {
     return limit > 0 ? result.slice(0, limit) : result;
 }
 
-function processDataForDynamicChart(data, chartConfig) {
-    if (!data || !chartConfig) return [];
-    const { xAxis, yAxis, filter, groupBy } = chartConfig;
+function processDataForDynamicTable(data, tableConfig) {
+    if (!data || !tableConfig || !tableConfig.columns) return [];
+    const { groupBy, columns, filter, sortBy, sortOrder = 'desc', limit } = tableConfig;
     let filteredData = data;
-    if (filter) { filteredData = data.filter(row => { const val = (row.raw || row)[filter.field]; return filter.operator === 'equals' || !filter.operator ? val === filter.value : true; }); }
-    const xField = xAxis?.field || groupBy;
-    if (!xField) return [];
+    if (filter) {
+        filteredData = data.filter(row => {
+            const rawValue = row.raw ? row.raw[filter.field] : row[filter.field];
+            if (filter.operator === 'in') return Array.isArray(filter.values) && filter.values.includes(rawValue);
+            if (filter.operator === 'equals' || !filter.operator) return rawValue === filter.value;
+            if (filter.operator === 'not_equals') return rawValue !== filter.value;
+            return true;
+        });
+    }
     const groups = {};
-    filteredData.forEach(row => { const xVal = String((row.raw || row)[xField] || 'Unknown'); if (!groups[xVal]) groups[xVal] = []; groups[xVal].push(row); });
-    return Object.entries(groups).map(([xVal, rows]) => {
-        const point = { name: xVal };
-        const yAgg = yAxis?.aggregation || 'count';
-        if (yAgg === 'count') point.value = rows.length;
-        else if (yAgg === 'sum' && yAxis?.field) point.value = rows.reduce((acc, r) => acc + (parseFloat((r.raw || r)[yAxis.field]) || 0), 0);
-        else if (yAgg === 'avg' && yAxis?.field) { const nums = rows.map(r => parseFloat((r.raw || r)[yAxis.field])).filter(n => !isNaN(n)); point.value = nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0; }
-        return point;
-    }).sort((a, b) => b.value - a.value);
-}
-
-function DynamicChart({ data, chartConfig, colors }) {
-    const chartData = useMemo(() => processDataForDynamicChart(data, chartConfig), [data, chartConfig]);
-    if (!chartData || chartData.length === 0) return (<div className="bg-slate-900/50 backdrop-blur rounded-2xl p-6 border border-white/10"><h3 className="text-lg font-semibold text-white mb-4">{chartConfig.title || 'Chart'}</h3><div className="text-slate-400 text-center py-8">No data available</div></div>);
-    const chartColors = colors || ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6'];
-    const { type = 'bar', title } = chartConfig;
-    const renderChart = () => {
-        switch (type) {
-            case 'pie': case 'donut': return (<ResponsiveContainer width="100%" height={300}><PieChart><Pie data={chartData} cx="50%" cy="50%" innerRadius={type === 'donut' ? 60 : 0} outerRadius={100} dataKey="value" nameKey="name" label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>{chartData.map((e, i) => (<Cell key={i} fill={chartColors[i % chartColors.length]} />))}</Pie><Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} /></PieChart></ResponsiveContainer>);
-            case 'line': return (<ResponsiveContainer width="100%" height={300}><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" /><XAxis dataKey="name" stroke="#64748b" /><YAxis stroke="#64748b" /><Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} /><Line type="monotone" dataKey="value" stroke={chartColors[0]} strokeWidth={2} /></LineChart></ResponsiveContainer>);
-            default: return (<ResponsiveContainer width="100%" height={300}><BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" /><XAxis dataKey="name" stroke="#64748b" /><YAxis stroke="#64748b" /><Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} /><Bar dataKey="value" fill={chartColors[0]} radius={[4, 4, 0, 0]}>{chartData.map((e, i) => (<Cell key={i} fill={chartColors[i % chartColors.length]} />))}</Bar></BarChart></ResponsiveContainer>);
-        }
-    };
-    return (<div className="bg-slate-900/50 backdrop-blur rounded-2xl p-6 border border-white/10"><h3 className="text-lg font-semibold text-white mb-4">{title || 'Chart'}</h3>{renderChart()}</div>);
+    filteredData.forEach(row => {
+        const raw = row.raw || row;
+        const groupKey = groupBy ? String(raw[groupBy] || 'Unknown') : '_all';
+        if (!groups[groupKey]) groups[groupKey] = [];
+        groups[groupKey].push(row);
+    });
+    const result = Object.entries(groups).map(([groupKey, groupRows]) => {
+        const rowData = {};
+        columns.forEach(col => {
+            const { name, type, field, filter: colFilter, format } = col;
+            let colData = groupRows;
+            if (colFilter) {
+                colData = groupRows.filter(row => {
+                    const raw = row.raw || row;
+                    const val = raw[colFilter.field];
+                    if (colFilter.operator === 'in') return Array.isArray(colFilter.values) && colFilter.values.includes(val);
+                    if (colFilter.operator === 'equals' || !colFilter.operator) return val === colFilter.value;
+                    return true;
+                });
+            }
+            switch (type) {
+                case 'group_key': rowData[name] = groupKey; break;
+                case 'count': case 'count_where': rowData[name] = colData.length; break;
+                case 'sum': rowData[name] = colData.reduce((acc, row) => acc + (parseFloat((row.raw || row)[field]) || 0), 0); break;
+                case 'avg': { const nums = colData.map(row => parseFloat((row.raw || row)[field])).filter(n => !isNaN(n)); rowData[name] = nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0; break; }
+                case 'concat_unique': { const uv = {}; colData.forEach(row => { const v = (row.raw || row)[field]; if (v != null && v !== '') uv[v] = (uv[v] || 0) + 1; }); rowData[name] = Object.entries(uv).sort((a, b) => b[1] - a[1]).map(([v, c]) => `${v}: ${c}`).join(', ') || '-'; break; }
+                case 'list_unique': { const u = new Set(); colData.forEach(row => { const v = (row.raw || row)[field]; if (v != null && v !== '') u.add(v); }); rowData[name] = Array.from(u).join(', ') || '-'; break; }
+                case 'percentage': rowData[name] = groupRows.length > 0 ? (colData.length / groupRows.length) * 100 : 0; break;
+                case 'consensus_rate': {
+                    const valueCounts = {};
+                    let total = 0;
+                    groupRows.forEach(row => {
+                        const rawRow = row.raw || row;
+                        const v = rawRow[field];
+                        if (v != null && v !== '') {
+                            const key = String(v).toLowerCase().trim();
+                            valueCounts[key] = (valueCounts[key] || 0) + 1;
+                            total++;
+                        }
+                    });
+                    const counts = Object.values(valueCounts);
+                    const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
+                    rowData[name] = total > 0 ? (maxCount / total) * 100 : 0;
+                    break;
+                }
+                default: rowData[name] = '-';
+            }
+            if (format === 'percentage' && typeof rowData[name] === 'number') rowData[name] = rowData[name].toFixed(1) + '%';
+        });
+        return rowData;
+    });
+    if (sortBy) result.sort((a, b) => { let aVal = a[sortBy], bVal = b[sortBy]; if (typeof aVal === 'string' && aVal.endsWith('%')) { aVal = parseFloat(aVal); bVal = parseFloat(bVal); } return sortOrder === 'asc' ? (aVal > bVal ? 1 : -1) : (bVal > aVal ? 1 : -1); });
+    return limit > 0 ? result.slice(0, limit) : result;
 }
 
 function DynamicTable({ data, tableConfig }) {
