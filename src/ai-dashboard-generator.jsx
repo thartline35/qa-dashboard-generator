@@ -1651,23 +1651,41 @@ function DynamicTable({ data, tableConfig }) {
 function DynamicChart({ data, chartConfig }) {
     const chartData = useMemo(() => {
         if (!data || !chartConfig) return [];
-        const { groupBy, xAxis, yAxis } = chartConfig;
+        const { groupBy, yAxis } = chartConfig;
         const groups = {};
         data.forEach(row => {
             const raw = row.raw || row;
             const key = String(raw[groupBy] || 'Unknown');
-            if (!groups[key]) groups[key] = { name: key, value: 0, count: 0 };
-            groups[key].count++;
+            if (!groups[key]) groups[key] = { name: key, values: [], valueCounts: {}, total: 0 };
+            groups[key].total++;
             if (yAxis?.field) {
-                const num = parseFloat(raw[yAxis.field]);
-                if (!isNaN(num)) groups[key].value += num;
+                const val = raw[yAxis.field];
+                // For consensus_rate, track value distribution
+                if (val != null && val !== '') {
+                    const valKey = String(val).toLowerCase().trim();
+                    groups[key].valueCounts[valKey] = (groups[key].valueCounts[valKey] || 0) + 1;
+                }
+                // For numeric aggregations
+                const num = parseFloat(val);
+                if (!isNaN(num)) groups[key].values.push(num);
             }
         });
-        return Object.values(groups).map(g => ({
-            name: g.name,
-            value: yAxis?.aggregation === 'avg' ? (g.count > 0 ? g.value / g.count : 0) :
-                   yAxis?.aggregation === 'sum' ? g.value : g.count
-        })).sort((a, b) => b.value - a.value).slice(0, 15);
+        return Object.values(groups).map(g => {
+            let value;
+            if (yAxis?.aggregation === 'consensus_rate') {
+                // Calculate consensus: max count / total
+                const counts = Object.values(g.valueCounts);
+                const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
+                value = g.total > 0 ? (maxCount / g.total) * 100 : 0;
+            } else if (yAxis?.aggregation === 'avg') {
+                value = g.values.length > 0 ? g.values.reduce((a, b) => a + b, 0) / g.values.length : 0;
+            } else if (yAxis?.aggregation === 'sum') {
+                value = g.values.reduce((a, b) => a + b, 0);
+            } else {
+                value = g.total;
+            }
+            return { name: g.name, value };
+        }).sort((a, b) => a.name.localeCompare(b.name)).slice(0, 50);
     }, [data, chartConfig]);
 
     if (chartData.length === 0) return null;
@@ -1689,24 +1707,38 @@ function DynamicChart({ data, chartConfig }) {
                     <LineChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                         <XAxis dataKey="name" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-                        <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} />
-                        <Line type="monotone" dataKey="value" stroke="#6366F1" strokeWidth={2} />
+                        <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} domain={chartConfig.yAxis?.aggregation === 'consensus_rate' ? [0, 100] : ['auto', 'auto']} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} formatter={(value) => chartConfig.yAxis?.aggregation === 'consensus_rate' ? `${value.toFixed(1)}%` : value} />
+                        <Line type="monotone" dataKey="value" stroke="#6366F1" strokeWidth={2} dot={{ fill: '#6366F1' }} />
                     </LineChart>
+                ) : chartConfig.type === 'area' ? (
+                    <AreaChart data={chartData}>
+                        <defs>
+                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                        <XAxis dataKey="name" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+                        <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} domain={chartConfig.yAxis?.aggregation === 'consensus_rate' ? [0, 100] : ['auto', 'auto']} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} formatter={(value) => chartConfig.yAxis?.aggregation === 'consensus_rate' ? `${value.toFixed(1)}%` : value} />
+                        <Area type="monotone" dataKey="value" stroke="#6366F1" fillOpacity={1} fill="url(#colorValue)" />
+                    </AreaChart>
                 ) : chartConfig.type === 'horizontal_bar' ? (
                     <BarChart data={chartData} layout="vertical">
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                        <XAxis type="number" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+                        <XAxis type="number" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} domain={chartConfig.yAxis?.aggregation === 'consensus_rate' ? [0, 100] : ['auto', 'auto']} />
                         <YAxis type="category" dataKey="name" stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 11 }} width={120} />
-                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} formatter={(value) => chartConfig.yAxis?.aggregation === 'consensus_rate' ? `${value.toFixed(1)}%` : value} />
                         <Bar dataKey="value" fill="#6366F1" radius={[0, 4, 4, 0]} />
                     </BarChart>
                 ) : (
                     <BarChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                         <XAxis dataKey="name" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-                        <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
-                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} />
+                        <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} domain={chartConfig.yAxis?.aggregation === 'consensus_rate' ? [0, 100] : ['auto', 'auto']} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} formatter={(value) => chartConfig.yAxis?.aggregation === 'consensus_rate' ? `${value.toFixed(1)}%` : value} />
                         <Bar dataKey="value" fill="#6366F1" radius={[4, 4, 0, 0]} />
                     </BarChart>
                 )}
@@ -2882,7 +2914,7 @@ Column types: group_key, count, count_where, sum, avg, concat_unique, list_uniqu
         "type": "bar",  // bar, pie, donut, line, area, horizontal_bar
         "groupBy": "column_to_group_by",
         "xAxis": { "field": "column_name" },
-        "yAxis": { "aggregation": "count" }  // count, sum, avg
+        "yAxis": { "aggregation": "count" }  // count, sum, avg, consensus_rate
       }
       
       **CUSTOM FILTERS (customFilters array):**
