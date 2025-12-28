@@ -1581,7 +1581,15 @@ function processDataForDynamicTable(data, tableConfig) {
                 case 'list_unique': { const u = new Set(); colData.forEach(row => { const v = (row.raw || row)[field]; if (v != null && v !== '') u.add(v); }); rowData[name] = Array.from(u).join(', ') || '-'; break; }
                 case 'percentage': rowData[name] = groupRows.length > 0 ? (colData.length / groupRows.length) * 100 : 0; break;
                     case 'consensus_rate': {
-                    // Use groupRows (all rows for this date), NOT colData (which may be filtered)
+                    console.log('=== CONSENSUS DEBUG ===');
+                    console.log('field:', field);
+                    console.log('groupKey:', groupKey);
+                    console.log('groupRows.length:', groupRows.length);
+                    if (groupRows[0]) {
+                        console.log('sample row keys:', Object.keys(groupRows[0].raw || groupRows[0]));
+                        console.log('sample field value:', (groupRows[0].raw || groupRows[0])[field]);
+                    }
+                    
                     const valueCounts = {};
                     let total = 0;
                     groupRows.forEach(row => {
@@ -1593,81 +1601,20 @@ function processDataForDynamicTable(data, tableConfig) {
                             total++;
                         }
                     });
+                    
+                    console.log('valueCounts:', valueCounts);
+                    console.log('total:', total);
+                    
                     const counts = Object.values(valueCounts);
                     const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
-                    rowData[name] = total > 0 ? (maxCount / total) * 100 : 0;
+                    const result = total > 0 ? (maxCount / total) * 100 : 0;
+                    
+                    console.log('maxCount:', maxCount, 'result:', result);
+                    
+                    rowData[name] = result;
                     break;
                 }
                 
-                default: rowData[name] = '-';
-            }
-            if (format === 'percentage' && typeof rowData[name] === 'number') rowData[name] = rowData[name].toFixed(1) + '%';
-        });
-        return rowData;
-    });
-    if (sortBy) result.sort((a, b) => { let aVal = a[sortBy], bVal = b[sortBy]; if (typeof aVal === 'string' && aVal.endsWith('%')) { aVal = parseFloat(aVal); bVal = parseFloat(bVal); } return sortOrder === 'asc' ? (aVal > bVal ? 1 : -1) : (bVal > aVal ? 1 : -1); });
-    return limit > 0 ? result.slice(0, limit) : result;
-}
-
-function processDataForDynamicTable(data, tableConfig) {
-    if (!data || !tableConfig || !tableConfig.columns) return [];
-    const { groupBy, columns, filter, sortBy, sortOrder = 'desc', limit } = tableConfig;
-    let filteredData = data;
-    if (filter) {
-        filteredData = data.filter(row => {
-            const rawValue = row.raw ? row.raw[filter.field] : row[filter.field];
-            if (filter.operator === 'in') return Array.isArray(filter.values) && filter.values.includes(rawValue);
-            if (filter.operator === 'equals' || !filter.operator) return rawValue === filter.value;
-            if (filter.operator === 'not_equals') return rawValue !== filter.value;
-            return true;
-        });
-    }
-    const groups = {};
-    filteredData.forEach(row => {
-        const raw = row.raw || row;
-        const groupKey = groupBy ? String(raw[groupBy] || 'Unknown') : '_all';
-        if (!groups[groupKey]) groups[groupKey] = [];
-        groups[groupKey].push(row);
-    });
-    const result = Object.entries(groups).map(([groupKey, groupRows]) => {
-        const rowData = {};
-        columns.forEach(col => {
-            const { name, type, field, filter: colFilter, format } = col;
-            let colData = groupRows;
-            if (colFilter) {
-                colData = groupRows.filter(row => {
-                    const raw = row.raw || row;
-                    const val = raw[colFilter.field];
-                    if (colFilter.operator === 'in') return Array.isArray(colFilter.values) && colFilter.values.includes(val);
-                    if (colFilter.operator === 'equals' || !colFilter.operator) return val === colFilter.value;
-                    return true;
-                });
-            }
-            switch (type) {
-                case 'group_key': rowData[name] = groupKey; break;
-                case 'count': case 'count_where': rowData[name] = colData.length; break;
-                case 'sum': rowData[name] = colData.reduce((acc, row) => acc + (parseFloat((row.raw || row)[field]) || 0), 0); break;
-                case 'avg': { const nums = colData.map(row => parseFloat((row.raw || row)[field])).filter(n => !isNaN(n)); rowData[name] = nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0; break; }
-                case 'concat_unique': { const uv = {}; colData.forEach(row => { const v = (row.raw || row)[field]; if (v != null && v !== '') uv[v] = (uv[v] || 0) + 1; }); rowData[name] = Object.entries(uv).sort((a, b) => b[1] - a[1]).map(([v, c]) => `${v}: ${c}`).join(', ') || '-'; break; }
-                case 'list_unique': { const u = new Set(); colData.forEach(row => { const v = (row.raw || row)[field]; if (v != null && v !== '') u.add(v); }); rowData[name] = Array.from(u).join(', ') || '-'; break; }
-                case 'percentage': rowData[name] = groupRows.length > 0 ? (colData.length / groupRows.length) * 100 : 0; break;
-                case 'consensus_rate': {
-                    const valueCounts = {};
-                    let total = 0;
-                    groupRows.forEach(row => {
-                        const rawRow = row.raw || row;
-                        const v = rawRow[field];
-                        if (v != null && v !== '') {
-                            const key = String(v).toLowerCase().trim();
-                            valueCounts[key] = (valueCounts[key] || 0) + 1;
-                            total++;
-                        }
-                    });
-                    const counts = Object.values(valueCounts);
-                    const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
-                    rowData[name] = total > 0 ? (maxCount / total) * 100 : 0;
-                    break;
-                }
                 default: rowData[name] = '-';
             }
             if (format === 'percentage' && typeof rowData[name] === 'number') rowData[name] = rowData[name].toFixed(1) + '%';
@@ -1697,6 +1644,73 @@ function DynamicTable({ data, tableConfig }) {
             </div>
             <div className="overflow-x-auto"><table className="w-full"><thead><tr className="bg-white/5">{columns.map(col => (<th key={col} onClick={() => setSortConfig(p => ({ key: col, direction: p.key === col && p.direction === 'desc' ? 'asc' : 'desc' }))} className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase cursor-pointer hover:bg-white/5"><div className="flex items-center gap-1">{col}{sortConfig.key === col && (sortConfig.direction === 'desc' ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />)}</div></th>))}</tr></thead><tbody className="divide-y divide-white/5">{paginatedData.map((row, i) => (<tr key={i} className="hover:bg-white/5">{columns.map(col => (<td key={col} className="px-4 py-3 text-sm text-slate-300 max-w-xs truncate">{row[col]}</td>))}</tr>))}</tbody></table></div>
             {totalPages > 1 && (<div className="p-4 border-t border-white/10 flex justify-between items-center"><span className="text-sm text-slate-400">Page {currentPage} of {totalPages}</span><div className="flex gap-2"><button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 bg-white/10 rounded-lg text-sm disabled:opacity-50"><ChevronLeft className="h-4 w-4" /></button><button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 bg-white/10 rounded-lg text-sm disabled:opacity-50"><ChevronRight className="h-4 w-4" /></button></div></div>)}
+        </div>
+    );
+}
+
+function DynamicChart({ data, chartConfig }) {
+    const chartData = useMemo(() => {
+        if (!data || !chartConfig) return [];
+        const { groupBy, xAxis, yAxis } = chartConfig;
+        const groups = {};
+        data.forEach(row => {
+            const raw = row.raw || row;
+            const key = String(raw[groupBy] || 'Unknown');
+            if (!groups[key]) groups[key] = { name: key, value: 0, count: 0 };
+            groups[key].count++;
+            if (yAxis?.field) {
+                const num = parseFloat(raw[yAxis.field]);
+                if (!isNaN(num)) groups[key].value += num;
+            }
+        });
+        return Object.values(groups).map(g => ({
+            name: g.name,
+            value: yAxis?.aggregation === 'avg' ? (g.count > 0 ? g.value / g.count : 0) :
+                   yAxis?.aggregation === 'sum' ? g.value : g.count
+        })).sort((a, b) => b.value - a.value).slice(0, 15);
+    }, [data, chartConfig]);
+
+    if (chartData.length === 0) return null;
+
+    const COLORS = ['#6366F1', '#8B5CF6', '#EC4899', '#F43F5E', '#F97316', '#EAB308', '#22C55E', '#14B8A6', '#06B6D4', '#3B82F6'];
+
+    return (
+        <div className="bg-slate-900/50 backdrop-blur rounded-2xl border border-white/10 p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">{chartConfig.title || 'Chart'}</h3>
+            <ResponsiveContainer width="100%" height={300}>
+                {chartConfig.type === 'pie' || chartConfig.type === 'donut' ? (
+                    <PieChart>
+                        <Pie data={chartData} cx="50%" cy="50%" innerRadius={chartConfig.type === 'donut' ? 60 : 0} outerRadius={100} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                            {chartData.map((_, idx) => <Cell key={idx} fill={COLORS[idx % COLORS.length]} />)}
+                        </Pie>
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} />
+                    </PieChart>
+                ) : chartConfig.type === 'line' ? (
+                    <LineChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                        <XAxis dataKey="name" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+                        <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} />
+                        <Line type="monotone" dataKey="value" stroke="#6366F1" strokeWidth={2} />
+                    </LineChart>
+                ) : chartConfig.type === 'horizontal_bar' ? (
+                    <BarChart data={chartData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                        <XAxis type="number" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+                        <YAxis type="category" dataKey="name" stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 11 }} width={120} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} />
+                        <Bar dataKey="value" fill="#6366F1" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                ) : (
+                    <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                        <XAxis dataKey="name" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+                        <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} />
+                        <Bar dataKey="value" fill="#6366F1" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                )}
+            </ResponsiveContainer>
         </div>
     );
 }
