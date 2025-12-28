@@ -1581,21 +1581,23 @@ function processDataForDynamicTable(data, tableConfig) {
                 case 'list_unique': { const u = new Set(); colData.forEach(row => { const v = (row.raw || row)[field]; if (v != null && v !== '') u.add(v); }); rowData[name] = Array.from(u).join(', ') || '-'; break; }
                 case 'percentage': rowData[name] = groupRows.length > 0 ? (colData.length / groupRows.length) * 100 : 0; break;
                     case 'consensus_rate': {
-                        // Calculate consensus: max(count per unique value) / total * 100
-                        const valueCounts = {};
-                        colData.forEach(row => {
-                            const v = (row.raw || row)[field];
-                            if (v != null && v !== '') {
-                                const key = String(v).toLowerCase().trim();
-                                valueCounts[key] = (valueCounts[key] || 0) + 1;
-                            }
-                        });
-                        const counts = Object.values(valueCounts);
-                        const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
-                        const total = colData.length;
-                        rowData[name] = total > 0 ? (maxCount / total) * 100 : 0;
-                        break;
-                    }
+                    // Use groupRows (all rows for this date), NOT colData (which may be filtered)
+                    const valueCounts = {};
+                    let total = 0;
+                    groupRows.forEach(row => {
+                        const rawRow = row.raw || row;
+                        const v = rawRow[field];
+                        if (v != null && v !== '') {
+                            const key = String(v).toLowerCase().trim();
+                            valueCounts[key] = (valueCounts[key] || 0) + 1;
+                            total++;
+                        }
+                    });
+                    const counts = Object.values(valueCounts);
+                    const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
+                    rowData[name] = total > 0 ? (maxCount / total) * 100 : 0;
+                    break;
+                }
                 
                 default: rowData[name] = '-';
             }
