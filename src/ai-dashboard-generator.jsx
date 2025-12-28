@@ -1545,7 +1545,7 @@ function processDataForDynamicTable(data, tableConfig) {
     if (filter) {
         filteredData = data.filter(row => {
             const rawValue = row.raw ? row.raw[filter.field] : row[filter.field];
-            if (filter.operator === 'in') return filter.values.includes(rawValue);
+            if (filter.operator === 'in') return Array.isArray(filter.values) && filter.values.includes(rawValue);
             if (filter.operator === 'equals' || !filter.operator) return rawValue === filter.value;
             if (filter.operator === 'not_equals') return rawValue !== filter.value;
             return true;
@@ -1567,7 +1567,7 @@ function processDataForDynamicTable(data, tableConfig) {
                 colData = groupRows.filter(row => {
                     const raw = row.raw || row;
                     const val = raw[colFilter.field];
-                    if (colFilter.operator === 'in') return colFilter.values.includes(val);
+                    if (colFilter.operator === 'in') return Array.isArray(colFilter.values) && colFilter.values.includes(val);
                     if (colFilter.operator === 'equals' || !colFilter.operator) return val === colFilter.value;
                     return true;
                 });
@@ -5409,7 +5409,7 @@ export default function QADashboardGenerator() {
                 const raw = row.raw || row;
                 const val = raw[colFilter.field] ?? row[colFilter.field];
                 if (colFilter.operator === 'equals' || !colFilter.operator) return val === colFilter.value;
-                if (colFilter.operator === 'in') return colFilter.values?.includes(val);
+                if (colFilter.operator === 'in') return Array.isArray(colFilter.values) && colFilter.values.includes(val);
                 return true;
             });
         }
