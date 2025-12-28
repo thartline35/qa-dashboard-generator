@@ -1660,7 +1660,6 @@ function DynamicChart({ data, chartConfig }) {
             if (!groups[key]) groups[key] = { name: key, values: [], valueCounts: {}, total: 0 };
             groups[key].total++;
             
-            // Get the field value - check both raw and direct access
             const fieldName = yAxis?.field;
             if (fieldName) {
                 const val = raw[fieldName] ?? row[fieldName];
@@ -1673,10 +1672,10 @@ function DynamicChart({ data, chartConfig }) {
             }
         });
         
+        const agg = String(yAxis?.aggregation || '').toLowerCase();
+        
         return Object.values(groups).map(g => {
             let value;
-            const agg = yAxis?.aggregation?.toLowerCase?.() || yAxis?.aggregation;
-            
             if (agg === 'consensus_rate') {
                 const counts = Object.values(g.valueCounts);
                 const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
@@ -1695,7 +1694,8 @@ function DynamicChart({ data, chartConfig }) {
     if (chartData.length === 0) return null;
 
     const COLORS = ['#6366F1', '#8B5CF6', '#EC4899', '#F43F5E', '#F97316', '#EAB308', '#22C55E', '#14B8A6', '#06B6D4', '#3B82F6'];
-    const isConsensus = chartConfig.yAxis?.aggregation?.toLowerCase?.() === 'consensus_rate' || chartConfig.yAxis?.aggregation === 'consensus_rate';
+    const agg = String(chartConfig.yAxis?.aggregation || '').toLowerCase();
+    const isConsensus = agg === 'consensus_rate';
 
     return (
         <div className="bg-slate-900/50 backdrop-blur rounded-2xl border border-white/10 p-6">
@@ -1713,7 +1713,7 @@ function DynamicChart({ data, chartConfig }) {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                         <XAxis dataKey="name" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
                         <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} domain={isConsensus ? [0, 100] : ['auto', 'auto']} />
-                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} formatter={(value) => isConsensus ? `${value.toFixed(1)}%` : value} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} formatter={(value) => isConsensus ? `${Number(value).toFixed(1)}%` : value} />
                         <Line type="monotone" dataKey="value" stroke="#6366F1" strokeWidth={2} dot={{ fill: '#6366F1' }} />
                     </LineChart>
                 ) : chartConfig.type === 'area' ? (
@@ -1727,7 +1727,7 @@ function DynamicChart({ data, chartConfig }) {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                         <XAxis dataKey="name" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
                         <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} domain={isConsensus ? [0, 100] : ['auto', 'auto']} />
-                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} formatter={(value) => isConsensus ? `${value.toFixed(1)}%` : value} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} formatter={(value) => isConsensus ? `${Number(value).toFixed(1)}%` : value} />
                         <Area type="monotone" dataKey="value" stroke="#6366F1" fillOpacity={1} fill="url(#colorValue)" />
                     </AreaChart>
                 ) : chartConfig.type === 'horizontal_bar' ? (
@@ -1735,7 +1735,7 @@ function DynamicChart({ data, chartConfig }) {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                         <XAxis type="number" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} domain={isConsensus ? [0, 100] : ['auto', 'auto']} />
                         <YAxis type="category" dataKey="name" stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 11 }} width={120} />
-                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} formatter={(value) => isConsensus ? `${value.toFixed(1)}%` : value} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} formatter={(value) => isConsensus ? `${Number(value).toFixed(1)}%` : value} />
                         <Bar dataKey="value" fill="#6366F1" radius={[0, 4, 4, 0]} />
                     </BarChart>
                 ) : (
@@ -1743,7 +1743,7 @@ function DynamicChart({ data, chartConfig }) {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                         <XAxis dataKey="name" stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} />
                         <YAxis stroke="#64748b" tick={{ fill: '#64748b', fontSize: 11 }} domain={isConsensus ? [0, 100] : ['auto', 'auto']} />
-                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} formatter={(value) => isConsensus ? `${value.toFixed(1)}%` : value} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} formatter={(value) => isConsensus ? `${Number(value).toFixed(1)}%` : value} />
                         <Bar dataKey="value" fill="#6366F1" radius={[4, 4, 0, 0]} />
                     </BarChart>
                 )}
