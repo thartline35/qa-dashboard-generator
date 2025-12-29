@@ -1540,17 +1540,30 @@ function MetricCard({ title, value, subtitle, icon: Icon, color = 'indigo', onCl
 
 function processDataForDynamicTable(data, tableConfig) {
     if (!data || !tableConfig || !tableConfig.columns) return [];
-    const { groupBy, columns, filter, sortBy, sortOrder = 'desc', limit } = tableConfig;
+    const { groupBy, columns, filter, sortBy, sortOrder = 'desc', limit, postFilter } = tableConfig;
+    
+    // Pre-filter raw data
     let filteredData = data;
     if (filter) {
         filteredData = data.filter(row => {
-            const rawValue = row.raw ? row.raw[filter.field] : row[filter.field];
-            if (filter.operator === 'in') return Array.isArray(filter.values) && filter.values.includes(rawValue);
-            if (filter.operator === 'equals' || !filter.operator) return rawValue === filter.value;
-            if (filter.operator === 'not_equals') return rawValue !== filter.value;
-            return true;
+            const raw = row.raw || row;
+            const rawValue = raw[filter.field] ?? row[filter.field];
+            switch (filter.operator) {
+                case 'in': return Array.isArray(filter.values) && filter.values.includes(rawValue);
+                case 'not_in': return !Array.isArray(filter.values) || !filter.values.includes(rawValue);
+                case 'equals': return rawValue === filter.value;
+                case 'not_equals': return rawValue !== filter.value;
+                case 'contains': return String(rawValue || '').toLowerCase().includes(String(filter.value || '').toLowerCase());
+                case 'gt': return parseFloat(rawValue) > parseFloat(filter.value);
+                case 'gte': return parseFloat(rawValue) >= parseFloat(filter.value);
+                case 'lt': return parseFloat(rawValue) < parseFloat(filter.value);
+                case 'lte': return parseFloat(rawValue) <= parseFloat(filter.value);
+                default: return rawValue === filter.value;
+            }
         });
     }
+    
+    // Group data
     const groups = {};
     filteredData.forEach(row => {
         const raw = row.raw || row;
@@ -1558,38 +1571,89 @@ function processDataForDynamicTable(data, tableConfig) {
         if (!groups[groupKey]) groups[groupKey] = [];
         groups[groupKey].push(row);
     });
-    const result = Object.entries(groups).map(([groupKey, groupRows]) => {
-        const rowData = {};
+    
+    // Process each group and compute columns
+    let result = Object.entries(groups).map(([groupKey, groupRows]) => {
+        const rowData = { _count: groupRows.length }; // Always track count internally
+        
         columns.forEach(col => {
             const { name, type, field, filter: colFilter, format } = col;
             let colData = groupRows;
+            
+            // Apply column-level filter
             if (colFilter) {
                 colData = groupRows.filter(row => {
                     const raw = row.raw || row;
-                    const val = raw[colFilter.field];
-                    if (colFilter.operator === 'in') return Array.isArray(colFilter.values) && colFilter.values.includes(val);
-                    if (colFilter.operator === 'equals' || !colFilter.operator) return val === colFilter.value;
-                    return true;
+                    const val = raw[colFilter.field] ?? row[colFilter.field];
+                    switch (colFilter.operator) {
+                        case 'in': return Array.isArray(colFilter.values) && colFilter.values.includes(val);
+                        case 'not_in': return !Array.isArray(colFilter.values) || !colFilter.values.includes(val);
+                        case 'equals': return val === colFilter.value;
+                        case 'not_equals': return val !== colFilter.value;
+                        case 'contains': return String(val || '').toLowerCase().includes(String(colFilter.value || '').toLowerCase());
+                        case 'gt': return parseFloat(val) > parseFloat(colFilter.value);
+                        case 'gte': return parseFloat(val) >= parseFloat(colFilter.value);
+                        case 'lt': return parseFloat(val) < parseFloat(colFilter.value);
+                        case 'lte': return parseFloat(val) <= parseFloat(colFilter.value);
+                        default: return val === colFilter.value;
+                    }
                 });
             }
+            
+            let value;
             switch (type) {
-                case 'group_key': rowData[name] = groupKey; break;
-                case 'count': case 'count_where': rowData[name] = colData.length; break;
-                case 'sum': rowData[name] = colData.reduce((acc, row) => acc + (parseFloat((row.raw || row)[field]) || 0), 0); break;
-                case 'avg': { const nums = colData.map(row => parseFloat((row.raw || row)[field])).filter(n => !isNaN(n)); rowData[name] = nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0; break; }
-                case 'concat_unique': { const uv = {}; colData.forEach(row => { const v = (row.raw || row)[field]; if (v != null && v !== '') uv[v] = (uv[v] || 0) + 1; }); rowData[name] = Object.entries(uv).sort((a, b) => b[1] - a[1]).map(([v, c]) => `${v}: ${c}`).join(', ') || '-'; break; }
-                case 'list_unique': { const u = new Set(); colData.forEach(row => { const v = (row.raw || row)[field]; if (v != null && v !== '') u.add(v); }); rowData[name] = Array.from(u).join(', ') || '-'; break; }
-                case 'percentage': rowData[name] = groupRows.length > 0 ? (colData.length / groupRows.length) * 100 : 0; break;
-                    case 'consensus_rate': {
-                    console.log('=== CONSENSUS DEBUG ===');
-                    console.log('field:', field);
-                    console.log('groupKey:', groupKey);
-                    console.log('groupRows.length:', groupRows.length);
-                    if (groupRows[0]) {
-                        console.log('sample row keys:', Object.keys(groupRows[0].raw || groupRows[0]));
-                        console.log('sample field value:', (groupRows[0].raw || groupRows[0])[field]);
-                    }
-                    
+                case 'group_key':
+                    value = groupKey;
+                    break;
+                case 'count':
+                case 'count_where':
+                    value = colData.length;
+                    break;
+                case 'sum':
+                    value = colData.reduce((acc, row) => acc + (parseFloat((row.raw || row)[field]) || 0), 0);
+                    break;
+                case 'avg':
+                    const nums = colData.map(row => parseFloat((row.raw || row)[field])).filter(n => !isNaN(n));
+                    value = nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
+                    break;
+                case 'min':
+                    const minNums = colData.map(row => parseFloat((row.raw || row)[field])).filter(n => !isNaN(n));
+                    value = minNums.length > 0 ? Math.min(...minNums) : 0;
+                    break;
+                case 'max':
+                    const maxNums = colData.map(row => parseFloat((row.raw || row)[field])).filter(n => !isNaN(n));
+                    value = maxNums.length > 0 ? Math.max(...maxNums) : 0;
+                    break;
+                case 'median':
+                    const medNums = colData.map(row => parseFloat((row.raw || row)[field])).filter(n => !isNaN(n)).sort((a, b) => a - b);
+                    value = medNums.length > 0 ? medNums[Math.floor(medNums.length / 2)] : 0;
+                    break;
+                case 'concat_unique':
+                    const uv = {};
+                    colData.forEach(row => {
+                        const v = (row.raw || row)[field];
+                        if (v != null && v !== '') uv[v] = (uv[v] || 0) + 1;
+                    });
+                    value = Object.entries(uv).sort((a, b) => b[1] - a[1]).map(([v, c]) => `${v}: ${c}`).join(', ') || '-';
+                    break;
+                case 'list_unique':
+                    const u = new Set();
+                    colData.forEach(row => {
+                        const v = (row.raw || row)[field];
+                        if (v != null && v !== '') u.add(v);
+                    });
+                    value = Array.from(u).join(', ') || '-';
+                    break;
+                case 'first':
+                    value = colData.length > 0 ? ((colData[0].raw || colData[0])[field] || '-') : '-';
+                    break;
+                case 'last':
+                    value = colData.length > 0 ? ((colData[colData.length - 1].raw || colData[colData.length - 1])[field] || '-') : '-';
+                    break;
+                case 'percentage':
+                    value = groupRows.length > 0 ? (colData.length / groupRows.length) * 100 : 0;
+                    break;
+                case 'consensus_rate':
                     const valueCounts = {};
                     let total = 0;
                     groupRows.forEach(row => {
@@ -1601,49 +1665,164 @@ function processDataForDynamicTable(data, tableConfig) {
                             total++;
                         }
                     });
-                    
-                    console.log('valueCounts:', valueCounts);
-                    console.log('total:', total);
-                    
                     const counts = Object.values(valueCounts);
                     const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
-                    const result = total > 0 ? (maxCount / total) * 100 : 0;
-                    
-                    console.log('maxCount:', maxCount, 'result:', result);
-                    
-                    rowData[name] = result;
+                    value = total > 0 ? (maxCount / total) * 100 : 0;
                     break;
-                }
-                
-                default: rowData[name] = '-';
+                case 'mode':
+                    const modeCounts = {};
+                    colData.forEach(row => {
+                        const v = (row.raw || row)[field];
+                        if (v != null && v !== '') {
+                            const key = String(v);
+                            modeCounts[key] = (modeCounts[key] || 0) + 1;
+                        }
+                    });
+                    const modeEntries = Object.entries(modeCounts);
+                    value = modeEntries.length > 0 ? modeEntries.sort((a, b) => b[1] - a[1])[0][0] : '-';
+                    break;
+                case 'stddev':
+                    const stdNums = colData.map(row => parseFloat((row.raw || row)[field])).filter(n => !isNaN(n));
+                    if (stdNums.length > 1) {
+                        const mean = stdNums.reduce((a, b) => a + b, 0) / stdNums.length;
+                        const variance = stdNums.reduce((sum, n) => sum + Math.pow(n - mean, 2), 0) / stdNums.length;
+                        value = Math.sqrt(variance);
+                    } else {
+                        value = 0;
+                    }
+                    break;
+                case 'ratio':
+                    // Ratio of filtered count to total count
+                    value = groupRows.length > 0 ? colData.length / groupRows.length : 0;
+                    break;
+                default:
+                    value = '-';
             }
-            if (format === 'percentage' && typeof rowData[name] === 'number') rowData[name] = rowData[name].toFixed(1) + '%';
+            
+            // Apply formatting
+            if (format === 'percentage' && typeof value === 'number') {
+                rowData[name] = value.toFixed(1) + '%';
+            } else if (format === 'decimal' && typeof value === 'number') {
+                rowData[name] = value.toFixed(2);
+            } else if (format === 'integer' && typeof value === 'number') {
+                rowData[name] = Math.round(value);
+            } else if (format === 'currency' && typeof value === 'number') {
+                rowData[name] = '$' + value.toFixed(2);
+            } else {
+                rowData[name] = value;
+            }
         });
+        
         return rowData;
     });
-    if (sortBy) result.sort((a, b) => { let aVal = a[sortBy], bVal = b[sortBy]; if (typeof aVal === 'string' && aVal.endsWith('%')) { aVal = parseFloat(aVal); bVal = parseFloat(bVal); } return sortOrder === 'asc' ? (aVal > bVal ? 1 : -1) : (bVal > aVal ? 1 : -1); });
+    
+    // Apply post-aggregation filter (like SQL HAVING)
+    if (postFilter) {
+        const filters = Array.isArray(postFilter) ? postFilter : [postFilter];
+        result = result.filter(row => {
+            return filters.every(pf => {
+                let val = row[pf.column];
+                // Parse percentage strings back to numbers for comparison
+                if (typeof val === 'string' && val.endsWith('%')) {
+                    val = parseFloat(val);
+                }
+                const compareVal = parseFloat(pf.value);
+                switch (pf.operator) {
+                    case '>': case 'gt': return val > compareVal;
+                    case '>=': case 'gte': return val >= compareVal;
+                    case '<': case 'lt': return val < compareVal;
+                    case '<=': case 'lte': return val <= compareVal;
+                    case '=': case '==': case 'equals': return val === pf.value || val === compareVal;
+                    case '!=': case 'not_equals': return val !== pf.value && val !== compareVal;
+                    default: return true;
+                }
+            });
+        });
+    }
+    
+    // Sort
+    if (sortBy) {
+        result.sort((a, b) => {
+            let aVal = a[sortBy], bVal = b[sortBy];
+            if (typeof aVal === 'string' && aVal.endsWith('%')) aVal = parseFloat(aVal);
+            if (typeof bVal === 'string' && bVal.endsWith('%')) bVal = parseFloat(bVal);
+            if (typeof aVal === 'number' && typeof bVal === 'number') {
+                return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+            }
+            return sortOrder === 'asc' ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
+        });
+    }
+    
     return limit > 0 ? result.slice(0, limit) : result;
 }
 
 function DynamicTable({ data, tableConfig }) {
-    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'desc' });
-    const [searchTerm, setSearchTerm] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
-    const tableData = useMemo(() => processDataForDynamicTable(data, tableConfig), [data, tableConfig]);
-    const columns = tableConfig.columns?.map(c => c.name) || [];
-    const sortedData = useMemo(() => { if (!sortConfig.key) return tableData; return [...tableData].sort((a, b) => { let aVal = a[sortConfig.key], bVal = b[sortConfig.key]; return sortConfig.direction === 'asc' ? (aVal > bVal ? 1 : -1) : (bVal > aVal ? 1 : -1); }); }, [tableData, sortConfig]);
-    const filteredData = useMemo(() => { if (!searchTerm) return sortedData; return sortedData.filter(row => Object.values(row).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))); }, [sortedData, searchTerm]);
-    const paginatedData = filteredData.slice((currentPage - 1) * 25, currentPage * 25);
-    const totalPages = Math.ceil(filteredData.length / 25);
-    if (tableData.length === 0) return (<div className="bg-slate-900/50 backdrop-blur rounded-2xl p-6 border border-white/10"><h3 className="text-lg font-semibold text-white mb-4">{tableConfig.title || 'Table'}</h3><div className="text-slate-400 text-center py-8">No data available</div></div>);
-    return (
-        <div className="bg-slate-900/50 backdrop-blur rounded-2xl border border-white/10 overflow-hidden">
-            <div className="p-4 border-b border-white/10 flex justify-between items-center flex-wrap gap-3">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2"><Table2 className="h-5 w-5 text-indigo-400" />{tableConfig.title || 'Table'}<span className="text-sm font-normal text-slate-400">({filteredData.length})</span></h3>
-                <div className="relative"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" /><input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 text-sm" /></div>
+    const tableData = useMemo(() => {
+        return processDataForDynamicTable(data, tableConfig);
+    }, [data, tableConfig]);
+
+    if (!tableData || tableData.length === 0) {
+        return (
+            <div className="bg-slate-900/50 backdrop-blur rounded-2xl border border-white/10 p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">{tableConfig?.title || 'Custom Table'}</h3>
+                <p className="text-slate-400 text-sm">No data available for this configuration.</p>
             </div>
-            <div className="overflow-x-auto"><table className="w-full"><thead><tr className="bg-white/5">{columns.map(col => (<th key={col} onClick={() => setSortConfig(p => ({ key: col, direction: p.key === col && p.direction === 'desc' ? 'asc' : 'desc' }))} className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase cursor-pointer hover:bg-white/5"><div className="flex items-center gap-1">{col}{sortConfig.key === col && (sortConfig.direction === 'desc' ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />)}</div></th>))}</tr></thead><tbody className="divide-y divide-white/5">{paginatedData.map((row, i) => (<tr key={i} className="hover:bg-white/5">{columns.map(col => (<td key={col} className="px-4 py-3 text-sm text-slate-300 max-w-xs truncate">{row[col]}</td>))}</tr>))}</tbody></table></div>
-            {totalPages > 1 && (<div className="p-4 border-t border-white/10 flex justify-between items-center"><span className="text-sm text-slate-400">Page {currentPage} of {totalPages}</span><div className="flex gap-2"><button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 bg-white/10 rounded-lg text-sm disabled:opacity-50"><ChevronLeft className="h-4 w-4" /></button><button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 bg-white/10 rounded-lg text-sm disabled:opacity-50"><ChevronRight className="h-4 w-4" /></button></div></div>)}
+        );
+    }
+
+    const columns = Object.keys(tableData[0]).filter(k => !k.startsWith('_'));
+
+    return (
+        <div className="bg-slate-900/50 backdrop-blur rounded-2xl border border-white/10 p-6">
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white">{tableConfig?.title || 'Custom Table'}</h3>
+                <span className="text-xs text-slate-400">{tableData.length} rows</span>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="border-b border-white/10">
+                            {columns.map((col, idx) => (
+                                <th key={idx} className="text-left py-3 px-4 text-slate-300 font-medium">
+                                    {col}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {tableData.map((row, rowIdx) => (
+                            <tr key={rowIdx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                {columns.map((col, colIdx) => {
+                                    const value = row[col];
+                                    const isNumeric = typeof value === 'number';
+                                    const isPercentage = typeof value === 'string' && value.endsWith('%');
+                                    
+                                    let displayValue = value;
+                                    let cellClass = 'py-3 px-4 text-slate-100';
+                                    
+                                    if (isNumeric) {
+                                        displayValue = Number.isInteger(value) ? value.toLocaleString() : value.toFixed(2);
+                                        cellClass += ' text-right font-mono';
+                                    } else if (isPercentage) {
+                                        cellClass += ' text-right font-mono';
+                                        // Color code percentages
+                                        const numVal = parseFloat(value);
+                                        if (numVal >= 80) cellClass += ' text-emerald-400';
+                                        else if (numVal >= 60) cellClass += ' text-amber-400';
+                                        else cellClass += ' text-rose-400';
+                                    }
+                                    
+                                    return (
+                                        <td key={colIdx} className={cellClass}>
+                                            {displayValue ?? '-'}
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }
@@ -1651,10 +1830,32 @@ function DynamicTable({ data, tableConfig }) {
 function DynamicChart({ data, chartConfig }) {
     const chartData = useMemo(() => {
         if (!data || !chartConfig) return [];
-        const { groupBy, yAxis } = chartConfig;
-        const groups = {};
+        const { groupBy, yAxis, filter, postFilter } = chartConfig;
         
-        data.forEach(row => {
+        // Pre-filter raw data
+        let filteredData = data;
+        if (filter) {
+            filteredData = data.filter(row => {
+                const raw = row.raw || row;
+                const rawValue = raw[filter.field] ?? row[filter.field];
+                switch (filter.operator) {
+                    case 'in': return Array.isArray(filter.values) && filter.values.includes(rawValue);
+                    case 'not_in': return !Array.isArray(filter.values) || !filter.values.includes(rawValue);
+                    case 'equals': return rawValue === filter.value;
+                    case 'not_equals': return rawValue !== filter.value;
+                    case 'contains': return String(rawValue || '').toLowerCase().includes(String(filter.value || '').toLowerCase());
+                    case 'gt': return parseFloat(rawValue) > parseFloat(filter.value);
+                    case 'gte': return parseFloat(rawValue) >= parseFloat(filter.value);
+                    case 'lt': return parseFloat(rawValue) < parseFloat(filter.value);
+                    case 'lte': return parseFloat(rawValue) <= parseFloat(filter.value);
+                    default: return rawValue === filter.value;
+                }
+            });
+        }
+        
+        // Group data
+        const groups = {};
+        filteredData.forEach(row => {
             const raw = row.raw || row;
             const key = String(raw[groupBy] || 'Unknown');
             if (!groups[key]) groups[key] = { name: key, values: [], valueCounts: {}, total: 0 };
@@ -1674,21 +1875,58 @@ function DynamicChart({ data, chartConfig }) {
         
         const agg = String(yAxis?.aggregation || '').toLowerCase();
         
-        return Object.values(groups).map(g => {
+        // Calculate aggregated values
+        let result = Object.values(groups).map(g => {
             let value;
-            if (agg === 'consensus_rate') {
-                const counts = Object.values(g.valueCounts);
-                const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
-                value = g.total > 0 ? (maxCount / g.total) * 100 : 0;
-            } else if (agg === 'avg') {
-                value = g.values.length > 0 ? g.values.reduce((a, b) => a + b, 0) / g.values.length : 0;
-            } else if (agg === 'sum') {
-                value = g.values.reduce((a, b) => a + b, 0);
-            } else {
-                value = g.total;
+            switch (agg) {
+                case 'consensus_rate':
+                    const counts = Object.values(g.valueCounts);
+                    const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
+                    value = g.total > 0 ? (maxCount / g.total) * 100 : 0;
+                    break;
+                case 'avg':
+                    value = g.values.length > 0 ? g.values.reduce((a, b) => a + b, 0) / g.values.length : 0;
+                    break;
+                case 'sum':
+                    value = g.values.reduce((a, b) => a + b, 0);
+                    break;
+                case 'min':
+                    value = g.values.length > 0 ? Math.min(...g.values) : 0;
+                    break;
+                case 'max':
+                    value = g.values.length > 0 ? Math.max(...g.values) : 0;
+                    break;
+                case 'median':
+                    const sorted = [...g.values].sort((a, b) => a - b);
+                    value = sorted.length > 0 ? sorted[Math.floor(sorted.length / 2)] : 0;
+                    break;
+                default:
+                    value = g.total;
             }
             return { name: g.name, value, count: g.total };
-        }).sort((a, b) => a.name.localeCompare(b.name)).slice(0, 50);
+        });
+        
+        // Apply post-aggregation filter (like SQL HAVING)
+        if (postFilter) {
+            const filters = Array.isArray(postFilter) ? postFilter : [postFilter];
+            result = result.filter(item => {
+                return filters.every(pf => {
+                    const val = pf.column === 'count' ? item.count : item.value;
+                    const compareVal = parseFloat(pf.value);
+                    switch (pf.operator) {
+                        case '>': case 'gt': return val > compareVal;
+                        case '>=': case 'gte': return val >= compareVal;
+                        case '<': case 'lt': return val < compareVal;
+                        case '<=': case 'lte': return val <= compareVal;
+                        case '=': case '==': case 'equals': return val === compareVal;
+                        case '!=': case 'not_equals': return val !== compareVal;
+                        default: return true;
+                    }
+                });
+            });
+        }
+        
+        return result.sort((a, b) => a.name.localeCompare(b.name)).slice(0, 50);
     }, [data, chartConfig]);
 
     if (chartData.length === 0) return null;
@@ -1701,7 +1939,7 @@ function DynamicChart({ data, chartConfig }) {
         if (isConsensus) {
             return [`${Number(value).toFixed(1)}% (n=${props.payload.count})`, 'Consensus'];
         }
-        return [value, name];
+        return [`${Number(value).toFixed(1)} (n=${props.payload.count})`, name];
     };
 
     return (
@@ -2886,166 +3124,131 @@ function ChatPanel({ config, processedData, metrics, onClose, onMinimize, initia
         ? Object.keys(processedData[0].raw || {})
         : [];
 
-    return `You are an AI assistant helping a user analyze their REAL QA data. You work ONLY with actual data that exists - you NEVER make up, alter, or fabricate values.
+    return `You are an AI assistant that creates custom analytics for QA dashboards. You can create ANY visualization, table, or metric the user asks for, AS LONG AS THE DATA EXISTS.
 
-**CRITICAL RULES:**
-1. ONLY use columns that actually exist in the data
-2. ONLY calculate metrics from real data values
-3. NEVER invent data, columns, or values
-4. If data doesn't exist to fulfill a request, tell the user what's missing
-5. Focus on: calculating, filtering, grouping, visualizing, and drilling down into REAL data
+**AVAILABLE DATA COLUMNS:** ${availableColumns.join(', ')}
 
-**Current Dashboard State:**
-- Project Type: ${PROJECT_TYPES[config.projectType]?.name || 'Unknown'}
-- Total Records: ${metrics?.total || 0}
-- Approval Rate: ${metrics?.approvalRate?.toFixed(1) || 0}%
-- Defect Rate: ${metrics?.defectRate?.toFixed(1) || 0}%
-- Unique Experts: ${metrics?.uniqueExperts || 0}
-${metrics?.avgQuality ? `- Average Quality: ${metrics.avgQuality.toFixed(1)}%` : ''}
-
-**ACTUAL DATA STRUCTURE:**
-Available Columns: ${availableColumns.join(', ')}
-
-Sample Record:
+**SAMPLE RECORD:**
 ${sampleData}
 
-**Current Configuration:**
-- Expert ID Column: ${config.expertIdColumn}
-- Score Column: ${config.scoreColumn}
-- Category Column: ${config.categoryColumn || 'Not set'}
-- Reviewer Column: ${config.reviewerColumn || 'Not set'}
-- Timestamp Column: ${config.timestampColumn || 'Not set'}
-- Quality Dimension Columns: ${config.qualityDimensionColumns?.join(', ') || 'None'}
-- Pass Values: ${config.passValues?.join(', ') || 'None'}
-- Minor Values: ${config.minorValues?.join(', ') || 'None'}
-- Fail Values: ${config.failValues?.join(', ') || 'None'}
+**YOUR CAPABILITIES:**
+You can create charts, tables, and metrics with:
+- Any grouping by any column
+- Any aggregation (count, sum, avg, min, max, median, mode, stddev, consensus_rate, percentage, ratio)
+- Pre-filters on raw data (filter rows before grouping)
+- Post-filters on aggregated results (like SQL HAVING - filter after grouping)
+- Sorting by any column
+- Row limits
 
-**WHAT YOU CAN DO:**
-✅ Calculate metrics from existing columns (averages, counts, percentages, distributions)
-✅ Create visualizations (charts, tables) of real data
-✅ Filter and group data by existing column values
-✅ Set up drill-down views based on categories, experts, time periods
-✅ Configure quality dimensions using actual column names that contain Good/Bad or similar values
-✅ Modify thresholds for existing scoring columns
-✅ Add aggregations (sum, average, min, max, median) of numeric columns
-✅ Create time-series views if timestamp data exists
-✅ Compare subsets of data (expert vs expert, category vs category, time period vs time period)
+**FILTER OPERATORS:**
+Pre-filters and column filters support: equals, not_equals, in, not_in, contains, gt, gte, lt, lte
 
-**WHAT YOU CANNOT DO:**
-❌ Create new data that doesn't exist
-❌ Alter or fabricate values in the dataset
-❌ Use column names that don't exist in the actual data
-❌ Make assumptions about data that isn't present
-❌ Calculate metrics from columns that aren't in the dataset
+Post-filters (applied AFTER aggregation) support: >, >=, <, <=, =, !=
 
-**WHEN USER REQUESTS CHANGES:**
-1. First, verify the data exists to support their request
-2. If data is missing, explain what's needed
-3. If data exists, provide the configuration in JSON:
-
-\`\`\`json
-{
-  "action": "update_config",
-  "changes": {
-    "qualityDimensionColumns": ["actual_column_1", "actual_column_2"],
-    "enableQualityOverTime": true
-  }
-}
-\`\`\`
-
-**EXAMPLE VALID REQUESTS:**
-- "Calculate average score by category" → Aggregate real score values by real category values
-- "Show quality trend over time" → Plot real quality scores by real timestamps
-- "Filter to show only expert X" → Filter existing data where expertId = X
-- "Add drill-down by reviewer" → Create interactive view grouping by actual reviewer column
-
-**EXAMPLE INVALID REQUESTS (Explain what's missing):**
-- "Add sentiment analysis" → If sentiment column doesn't exist, explain it would need to be added to source data
-- "Show projected future performance" → Cannot predict/fabricate future data
-- "Calculate ROI" → If cost/revenue columns don't exist, explain they need to be in the data
-
-=======================================================================
-DYNAMIC CAPABILITIES - CREATE CUSTOM VISUALIZATIONS & FILTERS
-=======================================================================
-
-You can dynamically create tables, charts, filters, and metric cards using the schemas below.
-Always use ACTUAL column names from Available Columns listed above.
-IMPORTANT: Output valid JSON only. Do not include comments in JSON.
-
-**CUSTOM TABLES (customTables array):**
+**CUSTOM TABLES SCHEMA:**
 {
   "id": "unique_id",
   "title": "Table Title",
-  "groupBy": "column_to_group_by",
+  "groupBy": "column_name",
+  "filter": { "field": "column", "operator": "equals", "value": "x" },
+  "postFilter": { "column": "Total", "operator": ">", "value": 5 },
+  "sortBy": "column_name",
+  "sortOrder": "desc",
+  "limit": 100,
   "columns": [
     { "name": "Display Name", "type": "group_key" },
-    { "name": "Count", "type": "count" },
-    { "name": "Avg Score", "type": "avg", "field": "score_column" },
-    { "name": "Errors", "type": "concat_unique", "field": "error_column", "filter": { "field": "status", "operator": "equals", "value": "fail" }}
+    { "name": "Total", "type": "count" },
+    { "name": "Avg Score", "type": "avg", "field": "score_column", "format": "decimal" },
+    { "name": "Pass Count", "type": "count_where", "filter": { "field": "status", "operator": "equals", "value": "pass" } },
+    { "name": "Pass Rate", "type": "percentage", "filter": { "field": "status", "operator": "equals", "value": "pass" }, "format": "percentage" },
+    { "name": "Consensus", "type": "consensus_rate", "field": "answer_column", "format": "percentage" }
   ]
 }
 
-Column types: group_key, count, count_where, sum, avg, concat_unique, list_unique, percentage, consensus_rate
-- consensus_rate: Calculates the percentage of responses matching the most common answer. Example: { "name": "Consensus %", "type": "consensus_rate", "field": "edit_visual_quality", "format": "percentage" }
+Column types: group_key, count, count_where, sum, avg, min, max, median, mode, stddev, concat_unique, list_unique, first, last, percentage, ratio, consensus_rate
 
-**CUSTOM CHARTS (customCharts array):**
+Formats: percentage, decimal, integer, currency
+
+**CUSTOM CHARTS SCHEMA:**
 {
   "id": "unique_id",
   "title": "Chart Title",
   "type": "bar",
-  "groupBy": "column_to_group_by",
+  "groupBy": "column_name",
+  "filter": { "field": "column", "operator": "equals", "value": "x" },
+  "postFilter": { "column": "count", "operator": ">", "value": 5 },
   "xAxis": { "field": "column_name" },
   "yAxis": { "aggregation": "count", "field": "column_name" }
 }
 
-Chart types: bar, pie, donut, line, area, horizontal_bar
+Chart types: bar, horizontal_bar, line, area, pie, donut
+yAxis aggregations: count, sum, avg, min, max, median, consensus_rate
 
-yAxis aggregations:
-- count: Total records per group (field optional)
-- sum: Sum of numeric field values (requires field)
-- avg: Average of numeric field values (requires field)
-- consensus_rate: Percentage of responses matching the most common answer (requires field). Shows 0-100%.
+For postFilter on charts, use "count" to filter by group size, or "value" to filter by the aggregated value.
 
-consensus_rate chart example:
+**EXAMPLES:**
+
+1. "Show consensus rate by date, but only dates with more than 5 reviews":
 {
-  "id": "consensus_timeline",
-  "title": "Edit Visual Quality - Consensus Rate Over Time",
-  "type": "line",
-  "groupBy": "review_ds",
-  "xAxis": { "field": "review_ds" },
-  "yAxis": { "aggregation": "consensus_rate", "field": "edit_visual_quality" }
+  "customCharts": [{
+    "id": "consensus_by_date_filtered",
+    "title": "Consensus Rate by Date (6+ reviews)",
+    "type": "line",
+    "groupBy": "review_ds",
+    "postFilter": { "column": "count", "operator": ">", "value": 5 },
+    "xAxis": { "field": "review_ds" },
+    "yAxis": { "aggregation": "consensus_rate", "field": "edit_visual_quality" }
+  }]
 }
 
-**CUSTOM FILTERS (customFilters array):**
-Creates dropdown filters that filter the entire dashboard.
-{ "field": "column_name", "label": "Display Label" }
-
-**CUSTOM METRICS (customMetrics array):**
-Creates KPI cards with calculated values.
+2. "Show only experts with approval rate below 80%":
 {
-  "id": "unique_id",
-  "name": "Metric Name",
-  "type": "count",
-  "field": "column_for_aggregation",
-  "filter": { "field": "status", "operator": "equals", "value": "fail" },
-  "color": "rose"
+  "customTables": [{
+    "id": "low_performers",
+    "title": "Experts Below 80% Approval",
+    "groupBy": "expert_id",
+    "postFilter": { "column": "Approval Rate", "operator": "<", "value": 80 },
+    "columns": [
+      { "name": "Expert", "type": "group_key" },
+      { "name": "Total", "type": "count" },
+      { "name": "Passed", "type": "count_where", "filter": { "field": "status", "operator": "equals", "value": "pass" } },
+      { "name": "Approval Rate", "type": "percentage", "filter": { "field": "status", "operator": "equals", "value": "pass" }, "format": "percentage" }
+    ]
+  }]
 }
 
-Metric types: count, count_unique, sum, avg, percentage
-Metric colors: indigo, purple, emerald, rose, amber, cyan
+3. "Show data only for queue_name = 'priority'":
+{
+  "customTables": [{
+    "id": "priority_queue",
+    "title": "Priority Queue Analysis",
+    "groupBy": "expert_id",
+    "filter": { "field": "queue_name", "operator": "equals", "value": "priority" },
+    "columns": [...]
+  }]
+}
 
-**EXAMPLE - Add team lead filter and failed tasks metric:**
-\`\`\`json
+4. Multiple post-filters (AND logic):
+{
+  "postFilter": [
+    { "column": "Total", "operator": ">", "value": 10 },
+    { "column": "Consensus Rate", "operator": "<", "value": 70 }
+  ]
+}
+
+**RESPONSE FORMAT:**
+Always respond with valid JSON wrapped in \`\`\`json ... \`\`\` blocks:
 {
   "action": "update_config",
   "changes": {
-    "customFilters": [{ "field": "team_lead", "label": "Team Lead" }],
-    "customMetrics": [{ "id": "fails", "name": "Failed Tasks", "type": "count", "filter": { "field": "status", "operator": "equals", "value": "fail" }, "color": "rose" }]
+    "customCharts": [...],
+    "customTables": [...],
+    "customMetrics": [...],
+    "customFilters": [...]
   }
 }
-\`\`\`
 
-Your job: Help users extract maximum insights from their ACTUAL data through smart calculations, filters, groupings, and visualizations.`;
+IMPORTANT: Only use columns that exist in the data. Available columns are: ${availableColumns.join(', ')}`;
 };
 
     const handleSend = async () => {
