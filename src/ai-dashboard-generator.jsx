@@ -3343,21 +3343,30 @@ IMPORTANT: Only use columns that exist in the data. Available columns are: ${ava
                 // Validate custom charts
                 if (incomingChanges.customCharts) {
                     incomingChanges.customCharts = incomingChanges.customCharts.map(chart => {
-                        const metricNeedsColumn = chart.metric && ['avg', 'sum', 'min', 'max'].includes(chart.metric);
-                        const metricColumn = chart.metricColumn && chart.metricColumn !== 'auto'
-                            ? chart.metricColumn
+                        // Support both old format (metric/metricColumn) and new format (yAxis)
+                        const agg = chart.yAxis?.aggregation || chart.metric;
+                        const metricNeedsColumn = agg && ['avg', 'sum', 'min', 'max'].includes(agg);
+                        const metricColumn = chart.yAxis?.field || chart.metricColumn;
+                        const resolvedMetricColumn = metricColumn && metricColumn !== 'auto'
+                            ? metricColumn
                             : (metricNeedsColumn ? (config.scoreColumn || pickFirstNumericColumn()) : undefined);
                         const groupBy = chart.groupBy && chart.groupBy !== 'auto'
                             ? chart.groupBy
                             : (config.categoryColumn || config.expertIdColumn || pickFirstStringColumn());
-                        return { type: 'bar', ...chart, metricColumn, groupBy };
+                        return { type: 'bar', ...chart, metricColumn: resolvedMetricColumn, groupBy };
                     });
 
                     const invalidCharts = incomingChanges.customCharts.filter(chart => {
                         const hasGroupBy = chart.groupBy && allColumns.includes(chart.groupBy);
-                        const metricNeedsColumn = chart.metric && ['avg', 'sum', 'min', 'max'].includes(chart.metric);
-                        const hasMetricCol = !metricNeedsColumn || (chart.metricColumn && allColumns.includes(chart.metricColumn));
-                        return !hasGroupBy || !hasMetricCol;
+                        // Support both old and new format for aggregation
+                        const agg = chart.yAxis?.aggregation || chart.metric;
+                        const metricNeedsColumn = agg && ['avg', 'sum', 'min', 'max'].includes(agg);
+                        // consensus_rate and count don't need a metric column to be in allColumns
+                        const isSpecialAgg = ['consensus_rate', 'count'].includes(agg);
+                        const yAxisField = chart.yAxis?.field;
+                        const hasYAxisField = !yAxisField || allColumns.includes(yAxisField);
+                        const hasMetricCol = isSpecialAgg || !metricNeedsColumn || (chart.metricColumn && allColumns.includes(chart.metricColumn));
+                        return !hasGroupBy || (!hasMetricCol && !hasYAxisField);
                     });
                     if (invalidCharts.length > 0) {
                         setMessages(prev => [...prev, {
@@ -3401,9 +3410,10 @@ IMPORTANT: Only use columns that exist in the data. Available columns are: ${ava
             }
         } catch (error) {
             console.error('Chat error:', error);
+            const errorMsg = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: `Error: ${error.message}`
+                content: `Error: ${errorMsg}`
             }]);
         } finally {
             setIsProcessing(false);
