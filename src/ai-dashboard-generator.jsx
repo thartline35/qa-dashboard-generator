@@ -3286,8 +3286,21 @@ IMPORTANT: Only use columns that exist in the data. Available columns are: ${ava
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `API request failed: ${response.status}`);
+                let errorMsg = `API request failed: ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    // Handle Anthropic API error format
+                    if (errorData?.error?.message) {
+                        errorMsg = errorData.error.message;
+                    } else if (errorData?.error) {
+                        errorMsg = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
+                    } else if (errorData?.message) {
+                        errorMsg = errorData.message;
+                    }
+                } catch (e) {
+                    // Response wasn't JSON
+                }
+                throw new Error(errorMsg);
             }
 
             const data = await response.json();
